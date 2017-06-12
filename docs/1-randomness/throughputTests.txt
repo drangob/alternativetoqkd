@@ -1,0 +1,9 @@
+Tests of /dev/random show throughput of:
+	1000000 bytes (1.0 MB, 977 KiB), 37.0049 s, 27.0 kB/s
+	1000000 bytes (1.0 MB, 977 KiB), 37.716 s, 26.5 kB/s
+	1000000 bytes (1.0 MB, 977 KiB), 38.2632 s, 26.1 kB/s
+
+	mean throughput of 26.5kB/s
+
+/dev/urandom is not cryptographically secure and generates much quicker at 
+534 kB/s
