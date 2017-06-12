@@ -1,0 +1,7 @@
+Intel RdRand has a high maximum throughput at 800 MB/sec.
+Note though that a single thread will see a throughput of 70 to 200MB/sec 
+
+https://software.intel.com/sites/default/files/managed/4d/91/DRNG_Software_Implementation_Guide_2.0.pdf
+
+
+ID Quantique Quantis-USB throughput of 4 Mbit/s
