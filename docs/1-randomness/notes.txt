@@ -4,4 +4,26 @@ Note though that a single thread will see a throughput of 70 to 200MB/sec
 https://software.intel.com/sites/default/files/managed/4d/91/DRNG_Software_Implementation_Guide_2.0.pdf
 
 
+Intel RdRand found to be robust and is unlikely to provide insecure randomness
+due to the usage of a von Neumann corrector. 
+"the most likely failure modes cause the output to be “stuck” in one state 
+(e.g., stuck on), causing no output from the von Neumann corrector."
+Jun, B. and Kocher, P. "The Intel Random Number Generator" Cryptography Research, Inc., April 1999
+
+Much talk about possible backdoors and trojans into Intels TRNG, 
+"Stealthy Dopant-Level Hardware Trojans" found that it is possible to insert a 
+Trojan into the TRNG without detection. 
+"Since optical reverse-engineering is not feasible and our Trojan
+passes functional testing, a verifier cannot distinguish a Trojan design from a
+Trojan-free design."
+
+Intel's David Johnston states "I’ve examined my own RNG with electron microscopes and
+picoprobes. So I and a number of test engineers know full well that
+the design hasn’t been subverted."
+
+Due to the risk of an undetected hardware trojan it's preferable that the Intel
+TRNG is not the sole source of entropy in the system.
+
+
+
 ID Quantique Quantis-USB throughput of 4 Mbit/s

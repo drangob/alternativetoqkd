@@ -1,0 +1,5 @@
+https://software.intel.com/en-us/articles/intel-digital-random-number-generator-drng-software-implementation-guide
+https://www.rambus.com/intel-random-number-generator/
+http://cr.yp.to/talks/2014.05.16/slides-dan+tanja-20140516-4x3.pdf
+http://sharps.org/wp-content/uploads/BECKER-CHES.pdf
+https://plus.google.com/+TheodoreTso/posts/SDcoemc9V3J
