@@ -21,9 +21,24 @@ Intel's David Johnston states "I’ve examined my own RNG with electron microsco
 picoprobes. So I and a number of test engineers know full well that
 the design hasn’t been subverted."
 
-Due to the risk of an undetected hardware trojan it's preferable that the Intel
-TRNG is not the sole source of entropy in the system.
+Due to the risk of an undetected hardware trojan it's preferable (but not 
+imperative) that the Intel TRNG is not the sole source of entropy in the system.
 
 
 
-ID Quantique Quantis-USB throughput of 4 Mbit/s
+ID Quantique Quantis-USB throughput of 4 Mbit/s 
+This is 500kB/s, the same speed which we get from Linux insecure /dev/urandom
+Combining this with Intels TRNG would enable us to generate random bits at a rate
+of 1.8GB/hour. 
+ID Quantique do offer a 16Mbit/s PCIe version of the card which would enable us 
+to generate 7.2GB/hour
+
+
+There is little analysis into the Linux implementation of of /dev/random and its
+PRNG as a whole. It involves 3 entropy pools, one primary which feeds the 
+secondary /dev/random and /dev/urandom pools, the pools are filled by keyboard 
+use, mouse use, disk use, interrupts and hardware entropy such as Intel RdRand 
+if possible. 
+These will then by hashed together using SHA-1 to provide the output bits. It is 
+accepted that this approach is cryptographically secure, but very slow to 
+generate bits, so therefore is not useful for our system.

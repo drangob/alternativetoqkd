@@ -1,4 +1,8 @@
 Tests of /dev/random show throughput of:
+	(using 'dd if=/dev/random bs=1000000 count=1 iflag=fullblock' for benchmark)
+
+	dd if=/dev/random bs=1000000 count=1 iflag=fullblock
+
 	1000000 bytes (1.0 MB, 977 KiB), 37.0049 s, 27.0 kB/s
 	1000000 bytes (1.0 MB, 977 KiB), 37.716 s, 26.5 kB/s
 	1000000 bytes (1.0 MB, 977 KiB), 38.2632 s, 26.1 kB/s
