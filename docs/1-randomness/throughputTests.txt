@@ -13,8 +13,8 @@ Tests of /dev/random show throughput of:
 534 kB/s
 
 
-RdRand is incredibly fast:
-RdRand gave a throughput of
+RDRAND is incredibly fast:
+RDRAND gave a throughput of
 	0.022365s = 44.71 MB/s
 	0.023165s = 43.17 MB/s
 	0.021080s = 47.44 MB/s

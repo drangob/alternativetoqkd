@@ -1,10 +1,11 @@
-Intel RdRand has a high maximum throughput at 800 MB/sec.
+Intel RDRAND has a high maximum throughput at 800 MB/sec.
 Note though that a single thread will see a throughput of 70 to 200MB/sec 
+
+My tests show that we could fill disks at a rate of 2.4GB/h using RDRAND
 
 https://software.intel.com/sites/default/files/managed/4d/91/DRNG_Software_Implementation_Guide_2.0.pdf
 
-
-Intel RdRand found to be robust and is unlikely to provide insecure randomness
+Intel RDRAND found to be robust and is unlikely to provide insecure randomness
 due to the usage of a von Neumann corrector. 
 "the most likely failure modes cause the output to be “stuck” in one state 
 (e.g., stuck on), causing no output from the von Neumann corrector."
@@ -34,11 +35,25 @@ ID Quantique do offer a 16Mbit/s PCIe version of the card which would enable us
 to generate 7.2GB/hour
 
 
+
 There is little analysis into the Linux implementation of of /dev/random and its
 PRNG as a whole. It involves 3 entropy pools, one primary which feeds the 
 secondary /dev/random and /dev/urandom pools, the pools are filled by keyboard 
-use, mouse use, disk use, interrupts and hardware entropy such as Intel RdRand 
+use, mouse use, disk use, interrupts and hardware entropy such as Intel RDRAND 
 if possible. 
 These will then by hashed together using SHA-1 to provide the output bits. It is 
 accepted that this approach is cryptographically secure, but very slow to 
 generate bits, so therefore is not useful for our system.
+
+
+Other CSPRNG (Cryptographically Secure Random Number Generators) exist (such as
+using AES in CTR mode) but are difficult for us to use due to the fact they need 
+to be seeded by another source of random data. We could do this by seeding it 
+with random data supplied by the Intel instruction RDSEED (Although, none of my 
+hardware can complete this instruction). Or by data from RDRAND directly. These 
+approaches are not sufficient though, due to the fact that Intel's DRNG remains 
+the sole root source of data, if it is insecure, then the whole system will 
+still be insecure. We could seed from /dev/random due to its slow speed and use 
+another CSPRNG, though I do not know how fast a CSPRNG of this type would be 
+compared to /dev/random itself. This also looks to be relatively difficult to 
+implement to yield large enough amounts of data to use in our system. 
