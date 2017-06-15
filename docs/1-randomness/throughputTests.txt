@@ -20,3 +20,9 @@ RDRAND gave a throughput of
 	0.021080s = 47.44 MB/s
 
 	mean througput of 45.1 MB/s
+
+AES CTR mode seeded with /dev/random throughput:
+	100000000 bytes (100 MB), 	21.189953s, 4.719217641 MB/s
+								21.549547s, 4.640468776	MB/s
+								21.265822s, 4.702381126 MB/s
+	mean throughput of 4.69 MB/s

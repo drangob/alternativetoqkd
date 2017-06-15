@@ -1,7 +1,7 @@
 Intel RDRAND has a high maximum throughput at 800 MB/sec.
 Note though that a single thread will see a throughput of 70 to 200MB/sec 
 
-My tests show that we could fill disks at a rate of 2.4GB/h using RDRAND
+My tests show that we could fill disks at a rate of 162.36 GB/hour using RDRAND
 
 https://software.intel.com/sites/default/files/managed/4d/91/DRNG_Software_Implementation_Guide_2.0.pdf
 
@@ -56,4 +56,25 @@ the sole root source of data, if it is insecure, then the whole system will
 still be insecure. We could seed from /dev/random due to its slow speed and use 
 another CSPRNG, though I do not know how fast a CSPRNG of this type would be 
 compared to /dev/random itself. This also looks to be relatively difficult to 
-implement to yield large enough amounts of data to use in our system. 
+implement to yield large enough amounts of data to use in our system.
+
+Built a AES 128-bit CSPRNG using CTR mode, seeded with data from /dev/random.
+Yeilding throughput of 4.69 MB/s. this would enable us to fill disks at a rate 
+of 16.88 GB/hour. This speed is likely acceptable to be combined with the Intel
+RDRAND. Used "tiny-AES128-C" as a library from "kokke" on GitHub (licensed as 
+free software in the public domain).
+
+
+Testing the randomness of the generated data using the DieHarder test suite. 
+DieHarder includes the DieHard set of statistical tests along with tests from 
+NIST's (National Institute of Standards and Technology) STS (Statistical Test 
+Suite). Results of these tests are shown in appropriate txt files.
+
+RDRAND and AES were tested. Both of these test results show a small amount of 
+"weak" results from the analysis. As we know Intel RDRAND is a safe way to 
+generate Cryptographically secure random numbers it is therefore safe to assume
+that the AES generation failing the tests in the same frequency is also safe.
+This can also be explained by the dieharder manual pages which states
+  "If you run a long test series, you will see occasional weak returns 
+  for a perfect generators because p is uniformly distributed and will appear in
+   any finite interval from time to time."

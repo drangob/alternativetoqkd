@@ -3,3 +3,7 @@ https://www.rambus.com/intel-random-number-generator/
 http://cr.yp.to/talks/2014.05.16/slides-dan+tanja-20140516-4x3.pdf
 http://sharps.org/wp-content/uploads/BECKER-CHES.pdf
 https://plus.google.com/+TheodoreTso/posts/SDcoemc9V3J
+
+https://github.com/kokke/tiny-AES128-C
+
+http://manpages.ubuntu.com/manpages/precise/man1/dieharder.1.html
