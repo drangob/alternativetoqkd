@@ -1,4 +1,21 @@
 Needed qualities:
 	Can access files in a timely manner
-	File sizes match sector sizes so that no space is lost
-	
+	File sizes are multiples of the file system block size so that no extra space is lost
+	Layout files in a way which is easy to structurally navigate and such	
+
+
+ext4:
+	built up of 4096byte blocks (can be different but usually not done, block is built up of 4 512byte sectors)
+	block=group of sectors
+	blocks are in block groups	
+
+Not matching size to multiples of these blocks is evidently an issue with 100MB files being generated previously:
+	100000000 is not a multiple of 4096. Therefore we get wasted space.
+	These files use 24416 4096 byte blocks each. 
+	This results in 100007936 bytes of space being used for 100000000 bytes of data.
+	We've wasted a block or so of data here.
+	Using 100003840 as the desired size creates a file that uses 24416 blocks, the same as previously, but providing 3840 more bytes of data1! 
+(We can still see that a block has been added to the size of the file- unsure as to why that extra block exists, filesystem seems to use an extra block when the file is over a certain size.)
+
+https://ext4.wiki.kernel.org/index.php/Ext4_Disk_Layout
+
