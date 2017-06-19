@@ -1,0 +1,4 @@
+Needed qualities:
+	Can access files in a timely manner
+	File sizes match sector sizes so that no space is lost
+	

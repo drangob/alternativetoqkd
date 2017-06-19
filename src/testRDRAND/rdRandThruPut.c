@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include <stdint.h>
 
-#define BYTES 1000000
+#define BYTES 100000000
 
 int main(int argc, char const *argv[]) {
 
