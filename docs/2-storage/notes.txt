@@ -19,3 +19,14 @@ Not matching size to multiples of these blocks is evidently an issue with 100MB 
 
 https://ext4.wiki.kernel.org/index.php/Ext4_Disk_Layout
 
+current idea:
+	In Ext4 if we know the name of the file, the performance of accessing that file is not lowered by the amount of files around it.
+		Therefore it makes the file system a lot simpler, if we have a standardised pointer file for the next usable bytes for encryption.
+	Pointer file should contain = [file name - offset from start of file in bytes] 
+	Random file access can be a little expensive, but i could not find evidence of this making a difference in 100mb files. Therefore lay out the files in many ~100mb files
+	
+	When encrypting new files, appropriate random will be found by following the pointer to the file and the bytes into that file. 
+		If the file we seek to encrypt is bigger than the space, reading the data should seemlessly pass to the next file on the disk to get more data.
+
+
+

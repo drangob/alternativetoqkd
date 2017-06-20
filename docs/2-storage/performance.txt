@@ -1,0 +1,23 @@
+We can use the 'time' program on linux to work out the speed of doing commands
+Using this to benchmark different filesystem layouts.
+
+Filled folder with 50,000 tiny numbered txt files.
+
+Accessing 1.txt takes the same amount of time as 31307.txt. 
+This shows when we know the file we are looking for, we access it very quickly, regardless of sequential or random access.
+1:
+real	0m0.002s
+31307:
+real	0m0.002s
+
+Seeking to the middle of a 100mb file does not seem to have any significant performance issue.
+
+Random Access Took 0.000083s
+Sequential Access Took 0.000088s
+Random Access Took 0.000150s
+Sequential Access Took 0.000110s
+Random Access Took 0.000109s
+Sequential Access Took 0.000098s
+Random Access Took 0.000090s
+Sequential Access Took 0.000078s
+
