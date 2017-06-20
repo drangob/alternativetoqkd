@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include <stdint.h>
 
-#define BYTES 100000000
+#define BYTES 100003840
 
 int main(int argc, char const *argv[]) {
 
@@ -13,6 +13,7 @@ int main(int argc, char const *argv[]) {
 	FILE *fd = fopen("data.bin","wb");
 
 	unsigned long long longRand;
+
 	//generate however many bytes we require and write them to a file
 	for (int i = 0; i < BYTES * 8 ; i+=64) {
 		_rdrand64_step(&longRand);

@@ -5,7 +5,7 @@
 
 #include "aes.h"
 
-#define BYTES 100000000
+#define BYTES 100003840
 
 int main(int argc, char const *argv[]) {
 	FILE *fd = fopen("data.bin","wb");
