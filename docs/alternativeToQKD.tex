@@ -8,6 +8,8 @@
 	margin=20mm
 }
 
+\usepackage{hyperref}
+
 
 \begin{document}
 	\maketitle
@@ -16,6 +18,76 @@
 		
 	
 	\section{Randomness Sources}
+		To build a one time pad encryption system large amounts of randomly generated bits are needed. These random bits should not be reproducible as it would render the system useless. Therefore suitable sources of cryptographically secure random numbers must be used. These sources must also have a high throughput due meet the needs of large amounts of bits.\\ 
+	
+		\subsection{Intel RDRAND}
+			Intel RDRAND has an incredibly high maximum throughput at 800 MB/sec. (Note though that a single thread will see a throughput of 70 to 200MB/sec).\footnote{\url{https://software.intel.com/sites/default/files/managed/4d/91/DRNG_Software_Implementation_Guide_2.0.pdf}} \\
+			My own tests show that we could fill disks at a rate of 162.36 GB/hour using RDRAND at throughput rates of:\\
+			0.022365s = 44.71 MB/s\\
+			0.023165s = 43.17 MB/s\\
+			0.021080s = 47.44 MB/s\\
+			Mean throughput of 45.1 MB/s\\
+			This throughput rate is more than suitable for our needs.\\
 			
+		
+			
+			Intel RDRAND has been found to be robustly designed and is unlikely to provide insecure predictable randomness, this is mostly due to the usage of a von Neumann corrector. ``the most likely failure modes cause the output to be “stuck” in one state (e.g., stuck on), causing no output from the von Neumann corrector'' \footnote{Jun, B. and Kocher, P.``The Intel Random Number Generator'' Cryptography Research, Inc., April 1999}
+			
+			There is much talk about possible backdoors and trojans into Intels RDRAND system, it has been found that it is possible to insert a 
+			Trojan into the Intel CPU without detection. 
+			``Since optical reverse-engineering is not feasible and our Trojan passes functional testing, a verifier cannot distinguish a Trojan design from a Trojan-free design''\footnote{Becker, Georg T., et al.``Stealthy dopant-level hardware trojans.'' International Workshop on Cryptographic Hardware and Embedded Systems. Springer Berlin Heidelberg, 2013}
+				
+			Intel's David Johnston states ``I’ve examined my own RNG with electron microscopes and picoprobes. So I and a number of test engineers know full well that the design hasn’t been subverted.''
+				
+			Due to the risk of an undetected hardware trojan it's preferable (but not imperative) that the Intel TRNG is not the sole source of entropy in the system.
+			
+		\subsection{ID Quantique Quantis}
+			
+			
+			
+			ID Quantique Quantis-USB throughput of 4 Mbit/s 
+			This is 500kB/s, the same speed which we get from Linux insecure /dev/urandom
+			Combining this with Intels TRNG would enable us to generate random bits at a rate
+			of 1.8GB/hour. 
+			ID Quantique do offer a 16Mbit/s PCIe version of the card which would enable us 
+			to generate 7.2GB/hour
+			
+			
+			
+			There is little analysis into the Linux implementation of of /dev/random and its
+			PRNG as a whole. It involves 3 entropy pools, one primary which feeds the 
+			secondary /dev/random and /dev/urandom pools, the pools are filled by keyboard 
+			use, mouse use, disk use, interrupts and hardware entropy such as Intel RDRAND 
+			if possible. 
+			These will then by hashed together using SHA-1 to provide the output bits. It is 
+			accepted that this approach is cryptographically secure, but very slow to 
+			generate bits, so therefore is not useful for our system.
+			
+			
+			Other CSPRNG (Cryptographically Secure Random Number Generators) exist (such as
+			using AES in CTR mode) but are difficult for us to use due to the fact they need 
+			to be seeded by another source of random data. We could do this by seeding it 
+			with random data supplied by the Intel instruction RDSEED (Although, none of my 
+			hardware can complete this instruction). Or by data from RDRAND directly. These 
+			approaches are not sufficient though, due to the fact that Intel's DRNG remains 
+			the sole root source of data, if it is insecure, then the whole system will 
+			still be insecure. We could seed from /dev/random due to its slow speed and use 
+			another CSPRNG, though I do not know how fast a CSPRNG of this type would be 
+			compared to /dev/random itself. This also looks to be relatively difficult to 
+			implement to yield large enough amounts of data to use in our system.
+			
+		Built a AES 128-bit CSPRNG using CTR mode, seeded with data from /dev/random.
+		Yeilding throughput of 4.69 MB/s. this would enable us to fill disks at a rate of 16.88 GB/hour. This speed is likely acceptable to be combined with the Intel RDRAND. Used "tiny-AES128-C" as a library from "kokke" on GitHub (licensed as free software in the public domain).
+			
+			
+		Testing the randomness of the generated data using the DieHarder test suite. 
+		DieHarder includes the DieHard set of statistical tests along with tests from 
+		NIST's (National Institute of Standards and Technology) STS (Statistical Test 
+			Suite). Results of these tests are shown in appropriate txt files.
+			
+		RDRAND and AES were tested. Both of these test results show a small amount of 
+		"weak" results from the analysis. As we know Intel RDRAND is a safe way to generate Cryptographically secure random numbers it is therefore safe to assume that the AES generation failing the tests in the same frequency is also safe.
+		This can also be explained by the dieharder manual pages which states
+		"If you run a long test series, you will see occasional weak returns for a perfect generators because p is uniformly distributed and will appear in any finite interval from time to time."
 						
 \end{document}
