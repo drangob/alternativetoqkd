@@ -9,7 +9,7 @@
 
 int main(int argc, char const *argv[]) {
 	FILE *fd = fopen("data.bin","wb");
-	FILE *frand = fopen("/dev/urandom", "r");
+	FILE *frand = fopen("/dev/random", "r");
 
 	double startTime = (double)clock()/CLOCKS_PER_SEC;
 	
