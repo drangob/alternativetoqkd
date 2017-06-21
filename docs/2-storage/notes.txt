@@ -14,7 +14,7 @@ Not matching size to multiples of these blocks is evidently an issue with 100MB 
 	These files use 24416 4096 byte blocks each. 
 	This results in 100007936 bytes of space being used for 100000000 bytes of data.
 	We've wasted a block or so of data here.
-	Using 100003840 as the desired size creates a file that uses 24416 blocks, the same as previously, but providing 3840 more bytes of data1! 
+	Using 100003840 as the desired size creates a file that uses 24416 blocks, the same as previously, but providing 3840 more bytes of data! 
 (We can still see that a block has been added to the size of the file- unsure as to why that extra block exists, filesystem seems to use an extra block when the file is over a certain size.)
 
 https://ext4.wiki.kernel.org/index.php/Ext4_Disk_Layout
@@ -26,7 +26,4 @@ current idea:
 	Random file access can be a little expensive, but i could not find evidence of this making a difference in 100mb files. Therefore lay out the files in many ~100mb files
 	
 	When encrypting new files, appropriate random will be found by following the pointer to the file and the bytes into that file. 
-		If the file we seek to encrypt is bigger than the space, reading the data should seemlessly pass to the next file on the disk to get more data.
-
-
-
+		If the file we seek to encrypt is bigger than the space, reading the data should seamlessly pass to the next file on the disk to get more data.
