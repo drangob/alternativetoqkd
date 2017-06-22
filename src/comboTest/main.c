@@ -8,11 +8,10 @@
 
 #define BYTES 100003840
 
-int main(int argc, char const *argv[]) {
-
+int write(char *outputFile) {
 	double startTime = (double)clock()/CLOCKS_PER_SEC;
 
-	FILE *fd = fopen("data.bin","wb");
+	FILE *fd = fopen(outputFile,"wb");
 	FILE *frand = fopen("/dev/random", "r");
 
 	__uint128_t nonce;
@@ -43,7 +42,7 @@ int main(int argc, char const *argv[]) {
 		input[0] = nonce ^ counter;
 		//increment counters
 		counter++;
-		
+
 		AES128_ECB_encrypt(input, key, output);
 
 		//get random twice - because the aes output is 128 bits
@@ -52,7 +51,7 @@ int main(int argc, char const *argv[]) {
 			//xor it
 			output[i*7] = output[i*7] ^ longRand;
 		}
-		
+
 		fwrite(output, sizeof(output), 1, fd);
 	}
 
@@ -63,6 +62,47 @@ int main(int argc, char const *argv[]) {
 	double timeElapsed = endTime - startTime;
 
 	printf("%d bytes Took %fs\n", BYTES, timeElapsed);
+
+	return 0;
+}
+
+int mkPointerFile(char *dir) {
+	//create the save path
+	char ptrSavePath[267];
+	sprintf(ptrSavePath, "%s/nextAvailible.ptr", dir);
+	//ptr file is made up of a 15 char file name
+	//followed by a byte number up to 100003840
+	FILE *fd = fopen(ptrSavePath, "wb");
+	char currentFile[15] = "0.bin";
+	uint32_t byteNum = 0;
+
+	fwrite(currentFile, sizeof(currentFile), 1, fd);
+	fwrite(&byteNum, sizeof(byteNum), 1, fd);
+
+	fclose(fd);
+}
+
+int main(int argc, char const *argv[]) {
+	//get path
+	char path[250];
+	printf("Please enter the full path of the directory for storage\n");
+	scanf("%s", path);
+	//get amount of data to generate
+	uint32_t chunksNo = 0;
+	printf("Please enter how many ~100mb chunks of data you desire\n");
+	scanf("%u", &chunksNo);
+
+	//write different files to consecutile file names
+	char filename[265];
+	for (uint32_t i = 0; i < chunksNo; ++i) {
+		printf(filename, "%s/%u.bin", path, i);
+		//edit the file name on each loop
+		sprintf(filename, "%s/%u.bin", path, i);
+		printf("%s\n", filename);
+		write(filename);
+	}
+	
+	mkPointerFile(path);
 
 	return 0;
 }

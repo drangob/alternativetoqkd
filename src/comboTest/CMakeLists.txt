@@ -9,3 +9,5 @@ set (CMAKE_C_FLAGS "-mrdrnd")
 
 add_executable(RandomCombination main.c)
 target_link_libraries(RandomCombination aes)
+
+add_executable(PtrIncrementer ptrIncrementer.c)
