@@ -21,3 +21,34 @@ Sequential Access Took 0.000098s
 Random Access Took 0.000090s
 Sequential Access Took 0.000078s
 
+Tests on a sample of 70 chunks of data show that accessing the first file is incredibly quick, but accessing random files take the same amount of time within a margin of error.
+This test has the same results as our test of 50,000 small files. This justifies the simple one folder layout of the system.
+
+0.bin
+real	0m0.023s
+user	0m0.004s
+sys	0m0.016s
+1.bin
+real	0m3.711s
+user	0m0.008s
+sys	0m0.100s
+2.bin
+real	0m3.671s
+user	0m0.000s
+sys	0m0.088s
+22.bin
+real	0m3.687s
+user	0m0.008s
+sys	0m0.080s
+15.bin
+real	0m4.885s
+user	0m0.000s
+sys	0m0.096s
+55.bin
+real	0m3.669s
+user	0m0.000s
+sys	0m0.084s
+2.bin
+real	0m3.649s
+user	0m0.000s
+sys	0m0.088s

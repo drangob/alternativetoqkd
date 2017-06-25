@@ -55,7 +55,7 @@
 			We could do this by seeding it with random data supplied by the Intel instruction RDSEED (Although, we have no access to hardware which can complete this instruction). Or by data from RDRAND directly. These approaches are not sufficient though as we are seeking to use a CSPRNG in conjunction with Intel RDRAND. Seeding with Intel's RDRAND would mean that the Intel TRNG would remain 	the sole root source of all random data.\\
 			A better alternative would be to seed from /dev/random due to making the most its slow speed and accepted security.\\
 			
-			A CSPRNG can be built by using AES in CTR mode repeatedly. We found that building an AES 128-bit\footnote{Used ``tiny-AES128-C'' as a library from ``kokke'' on GitHub \url{https://github.com/kokke/tiny-AES128-C}} CSPRNG using CTR mode, seeded with data from /dev/random yields throughput of 4.69 MB/s. This would enable us to fill disks at a rate of 16.88 GB/hour. 
+			A CSPRNG can be built by using AES in CTR mode repeatedly. We found that building an AES 128-bit\footnote{Used `tiny-AES128-C' as a library from `kokke' on GitHub \url{https://github.com/kokke/tiny-AES128-C}} CSPRNG using CTR mode, seeded with data from /dev/random yields throughput of 4.69 MB/s. This would enable us to fill disks at a rate of 16.88 GB/hour. 
 			
 		\subsection{Statistical Testing}
 			The suite of statistical tests used on the random bits we generated is the DieHarder Suite.\\ 
