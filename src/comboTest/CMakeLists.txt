@@ -8,6 +8,8 @@ link_directories(aes)
 set (CMAKE_C_FLAGS "-mrdrnd")
 
 add_executable(RandomCombination main.c)
-target_link_libraries(RandomCombination aes)
+target_link_libraries(RandomCombination opensslAES)
+find_package(OpenSSL)
+target_link_libraries(RandomCombination ${OPENSSL_LIBRARIES})
 
 add_executable(PtrIncrementer ptrIncrementer.c)

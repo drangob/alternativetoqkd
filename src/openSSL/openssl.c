@@ -5,87 +5,95 @@
 #include <stdint.h>
 #include <stdio.h>
 
-void print_uint128(__uint128_t n)
-{
-    if (n == 0) {
-      return;
-    }
+#define BYTES 100003840
 
-    print_uint128(n/10);
-    putchar(n%10+0x30);
-}
 
 int encrypt(__uint128_t *ctr, unsigned char *key, unsigned char *output);
 
-void handleErrors(void){}
+int sslSetup(void) {
+	//Initialise the library
+	ERR_load_crypto_strings();
+	OpenSSL_add_all_algorithms();
+	OPENSSL_config(NULL);	
+}
+
+int sslClose(void) {
+	EVP_cleanup();
+	ERR_free_strings();
+}
+
+void handleErrors(void){
+	printf("Error in encryption occurred.\n");
+	exit(-1);
+}
 
 int main (void) {
+	sslSetup();
 
-  FILE *fd = fopen("data.bin", "wb");
 
-  /* Set up the key and iv. Do I need to say to not hard code these in a
-   * real application? :-)
-   */
+	double startTime = (double)clock()/CLOCKS_PER_SEC;
 
-  /* A 128 bit key */
-  unsigned char *key = (unsigned char *)"0123456789012345";
+	FILE *fdRand = fopen("/dev/random", "rb");
+	FILE *fd = fopen("data.bin", "wb");
 
-  /* A 128 bit ctr */
-  __uint128_t ctr = 0;
+	//define 128bit key and read into it
+	unsigned char key[16];
+	fread(key, sizeof(char) * 16, 1, fdRand);
 
-  /* Buffer for ciphertext. Ensure the buffer is long enough for the
-   * ciphertext which may be longer than the plaintext, dependant on the
-   * algorithm and mode
-   */
-  unsigned char output[16];
+	//128 bit counter to be incremented from random
+	__uint128_t ctr = 0;
+	fread(&ctr, sizeof(__uint128_t), 1, fdRand);
 
-  int ciphertext_len;
+	fclose(fdRand);
 
-  /* Initialise the library */
-  ERR_load_crypto_strings();
-  OpenSSL_add_all_algorithms();
-  OPENSSL_config(NULL);
+	//output
+	unsigned char output[16];
 
-  for (int i = 0; i < 1; ++i) {
-    ciphertext_len = encrypt (&ctr, key, output);
-    ctr++;
+	int ciphertext_len;
 
-    fwrite(output, ciphertext_len, 1, fd);
-  }
 
-  /* Clean up */
-  EVP_cleanup();
-  ERR_free_strings();
+	for (int i = 0; i < (BYTES / 16); i++) {
+		ciphertext_len = encrypt (&ctr, key, output);
+		ctr++;
+		fwrite(output, ciphertext_len, 1, fd);
+	}
 
-  return 0;
+	double endTime = (double)clock()/CLOCKS_PER_SEC;
+
+	double timeElapsed = endTime - startTime;
+
+	printf("%d bytes Took %fs\n", BYTES, timeElapsed);
+
+	sslClose();
+	return 0;
 }
 
 
-int encrypt(__uint128_t *ctr, unsigned char *key, unsigned char *output)
-{
-  EVP_CIPHER_CTX *context;
+int encrypt(__uint128_t *ctr, unsigned char *key, unsigned char *output) {
+	EVP_CIPHER_CTX *context;
 
-  int len;
+	int len;
 
-  int ciphertext_len;
+	int ciphertext_len;
 
-  /* Create and initialise the context */
-  if(!(context = EVP_CIPHER_CTX_new())) handleErrors();
+	/* Create and initialise the context */
+	if(!(context = EVP_CIPHER_CTX_new())) handleErrors();
 
-  /* Initialise the encryption operation. 
-     Provide context, type of encryption, unknown, key and IV
-  */
-  if(1 != EVP_EncryptInit_ex(context, EVP_aes_128_ecb(), NULL, key, NULL))
-    handleErrors();
+	/* Initialise the encryption operation. 
+		 Provide context, type of encryption, unknown, key and IV
+	*/
+	if(1 != EVP_EncryptInit_ex(context, EVP_aes_128_ecb(), NULL, key, NULL))
+		handleErrors();
 
-  /* Provide the message to be encrypted, and obtain the encrypted output.
-   */
-  if(1 != EVP_EncryptUpdate(context, output, &len, (const unsigned char *)ctr, sizeof(__uint128_t)))
-    handleErrors();
-  ciphertext_len = len;
+	/* Provide the message to be encrypted, and obtain the encrypted output.
+	 */
+	if(1 != EVP_EncryptUpdate(context, output, &len, (const unsigned char *)ctr, sizeof(__uint128_t)))
+		handleErrors();
+	ciphertext_len = len;
 
-  /* Clean up */
-  EVP_CIPHER_CTX_free(context);
+	/* Clean up */
+	EVP_CIPHER_CTX_free(context);
 
-  return ciphertext_len;
+
+	return ciphertext_len;
 }

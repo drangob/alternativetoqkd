@@ -4,7 +4,7 @@
 #include <time.h>
 #include <immintrin.h>
 
-#include "aes.h"
+#include "openssl.h"
 
 #define BYTES 100003840
 
@@ -12,23 +12,19 @@ int write(char *outputFile) {
 	double startTime = (double)clock()/CLOCKS_PER_SEC;
 
 	FILE *fd = fopen(outputFile,"wb");
-	FILE *frand = fopen("/dev/random", "r");
+	FILE *frand = fopen("/dev/random", "rb");
+	sslSetup();
 
-	__uint128_t nonce;
-	__uint128_t counter;
+	//define 128bit aes key and read into it
+	unsigned char key[16];
+	fread(key, sizeof(char) * 16, 1, frand);
 
-	//library needs 16 bytes 
-	uint8_t input[16];
-	uint8_t output[16];
-	uint8_t key[16];
+	//128 bit aes counter to be incremented from random
+	__uint128_t ctr = 0;
+	fread(&ctr, sizeof(__uint128_t), 1, frand);
 
-
-	//fill 16 bytes of the nonce and key
-	fread(&nonce, 16, 1, frand);
-	fread(&key, 16, 1, frand);
-	//fill 16 bytes of the counter 
-	fread(&counter, sizeof(counter), 1, frand);
-	
+	//128 bit output for aes
+	unsigned char output[16];
 
 	//stop getting new random data for aes
 	fclose(frand);
@@ -36,14 +32,10 @@ int write(char *outputFile) {
 	//container for RDRAND randoms
 	unsigned long long longRand;
 
-
 	for (int i = 0; i < (BYTES / 16); i++) {
-		//input is nonce xor counter
-		input[0] = nonce ^ counter;
-		//increment counters
-		counter++;
-
-		AES128_ECB_encrypt(input, key, output);
+		//increment counter after running encryption
+		encrypt(&ctr, key, output);
+		ctr++;
 
 		//get random twice - because the aes output is 128 bits
 		for (int i = 0; i < 2; i++) {
@@ -52,10 +44,11 @@ int write(char *outputFile) {
 			output[i*7] = output[i*7] ^ longRand;
 		}
 
-		fwrite(output, sizeof(output), 1, fd);
+		fwrite(output, sizeof(unsigned char) * 16, 1, fd);
 	}
 
 	fclose(fd);
+	sslClose();
 
 	double endTime = (double)clock()/CLOCKS_PER_SEC;
 
