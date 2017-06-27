@@ -21,7 +21,7 @@
 	
 		\subsection{Intel RDRAND}
 			Intel RDRAND has an incredibly high maximum throughput at 800 MB/sec. (Note though that a single thread will see a throughput of 70 to 200MB/sec).\footnote{\url{https://software.intel.com/sites/default/files/managed/4d/91/DRNG_Software_Implementation_Guide_2.0.pdf}} \\
-			My own tests show that we could fill disks at a rate of 162.36 GB/hour using RDRAND at throughput rates of:\\
+			My own tests show that we could fill a 1TB disk in 6 Hours, 09 Minutes and 32 Seconds using RDRAND at throughput rates of:\\
 			0.022365s = 44.71 MB/s\\
 			0.023165s = 43.17 MB/s\\
 			0.021080s = 47.44 MB/s\\
@@ -55,7 +55,7 @@
 			We could do this by seeding it with random data supplied by the Intel instruction RDSEED (Although, we have no access to hardware which can complete this instruction). Or by data from RDRAND directly. These approaches are not sufficient though as we are seeking to use a CSPRNG in conjunction with Intel RDRAND. Seeding with Intel's RDRAND would mean that the Intel TRNG would remain 	the sole root source of all random data.\\
 			A better alternative would be to seed from /dev/random due to making the most its slow speed and accepted security.\\
 			
-			A CSPRNG can be built by using AES in CTR mode repeatedly. We found that building an AES 128-bit\footnote{Used `tiny-AES128-C' as a library from `kokke' on GitHub \url{https://github.com/kokke/tiny-AES128-C}} CSPRNG using CTR mode, seeded with data from /dev/random yields throughput of 4.69 MB/s. This would enable us to fill disks at a rate of 16.88 GB/hour. 
+			A CSPRNG can be built by using AES in CTR mode. I found that using OpenSSL with AES-NI instructions resulted in a CSPRNG which was incredibly fast. It is seeded with data from /dev/random and yields throughput of 29.281 MB/s. This would enable us to fill a 1TB disk in 9 Hours, 26 Minutes and 35 Seconds. 
 			
 		\subsection{Statistical Testing}
 			The suite of statistical tests used on the random bits we generated is the DieHarder Suite.\\ 
