@@ -3,39 +3,29 @@
 #include <stdint.h>
 #include <time.h>
 #include <immintrin.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 #include "openssl.h"
 
-#define BYTES 100003840
+#define LARGEBYTES 100003840
+#define SMALLBYTES 16384
 
-int write(char *outputFile) {
+int writeFile(char *outputFile, uint32_t fileSize, struct aesState *state) {
 	double startTime = (double)clock()/CLOCKS_PER_SEC;
 
 	FILE *fd = fopen(outputFile,"wb");
-	FILE *frand = fopen("/dev/random", "rb");
-	sslSetup();
-
-	//define 128bit aes key and read into it
-	unsigned char key[16];
-	fread(key, sizeof(char) * 16, 1, frand);
-
-	//128 bit aes counter to be incremented from random
-	__uint128_t ctr = 0;
-	fread(&ctr, sizeof(__uint128_t), 1, frand);
 
 	//128 bit output for aes
 	unsigned char output[16];
 
-	//stop getting new random data for aes
-	fclose(frand);
-
 	//container for RDRAND randoms
 	unsigned long long longRand;
 
-	for (int i = 0; i < (BYTES / 16); i++) {
-		//increment counter after running encryption
-		encrypt(&ctr, key, output);
-		ctr++;
+	for (int i = 0; i < (fileSize / 16); i++) {
+		//get the next random
+		nextRand(state, output);
 
 		//get random twice - because the aes output is 128 bits
 		for (int i = 0; i < 2; i++) {
@@ -48,13 +38,12 @@ int write(char *outputFile) {
 	}
 
 	fclose(fd);
-	sslClose();
 
 	double endTime = (double)clock()/CLOCKS_PER_SEC;
 
 	double timeElapsed = endTime - startTime;
 
-	printf("%d bytes Took %fs\n", BYTES, timeElapsed);
+	printf("%s: %d bytes Took %fs\n",outputFile, fileSize, timeElapsed);
 
 	return 0;
 }
@@ -75,7 +64,57 @@ int mkPointerFile(char *dir) {
 	fclose(fd);
 }
 
+int oneTimePadMode(char *path, uint32_t chunksNo, uint32_t fileSize) {
+	mkPointerFile(path);
+
+	//create the struct for aes
+	struct aesState *state = aesRandStartup();
+
+	//write different files to consecutive file names
+	char filename[265];
+	for (uint32_t i = 0; i < chunksNo; i++) {
+		printf(filename, "%s/%u.bin", path, i);
+		//edit the file name on each loop
+		sprintf(filename, "%s/%u.bin", path, i);
+		writeFile(filename, fileSize, state);
+	}
+	//get rid of the struct afterwards
+	aesRandTeardown(state);
+}
+
+
+int symmetricMode(char *path, uint32_t chunksNo, uint32_t fileSize) {
+	mkPointerFile(path);
+
+	//create the struct for aes
+	struct aesState *state = aesRandStartup();
+
+	char foldername[265];
+	//make the required number of folders
+	for (int i = 0; i < chunksNo; ++i) {
+		sprintf(foldername, "%s/%u", path, i);
+		mkdir(foldername, 0700);
+		//write different files to consecutive file names
+		char filename[265];
+		for (uint32_t i = 0; i < 6104; i++) {
+			//edit the file name on each loop
+			sprintf(filename, "%s/%u.bin", foldername, i);
+			writeFile(filename, fileSize, state);
+		}
+	}
+	//get rid of the struct afterwards
+	aesRandTeardown(state);
+}
+
 int main(int argc, char const *argv[]) {
+	uint32_t fileSize;
+	//changing the mode changes the file size and the layout of the files
+	printf("Please choose a mode of operation:\n-One time pad mode  (0) \n-Symmetric key mode (1)\n");
+	char mode = ' ';
+	//loop until we get a mode
+	while(!(mode == '0' || mode == '1')) {
+		mode = getchar();
+	}
 	//get path
 	char path[250];
 	printf("Please enter the full path of the directory for storage\n");
@@ -85,17 +124,15 @@ int main(int argc, char const *argv[]) {
 	printf("Please enter how many ~100mb chunks of data you desire\n");
 	scanf("%u", &chunksNo);
 
-	//write different files to consecutile file names
-	char filename[265];
-	for (uint32_t i = 0; i < chunksNo; ++i) {
-		printf(filename, "%s/%u.bin", path, i);
-		//edit the file name on each loop
-		sprintf(filename, "%s/%u.bin", path, i);
-		printf("%s\n", filename);
-		write(filename);
+
+	if(mode == '0') {
+		fileSize = LARGEBYTES;
+		oneTimePadMode(path, chunksNo, fileSize);
+	} else {
+		fileSize = SMALLBYTES;
+		symmetricMode(path, chunksNo, fileSize);
 	}
 	
-	mkPointerFile(path);
 
 	return 0;
 }

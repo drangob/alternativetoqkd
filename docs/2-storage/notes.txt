@@ -27,3 +27,13 @@ current idea:
 	
 	When encrypting new files, appropriate random will be found by following the pointer to the file and the bytes into that file. 
 		If the file we seek to encrypt is bigger than the space, reading the data should seamlessly pass to the next file on the disk to get more data.
+
+
+
+
+To use the bits as a directory of symmetric keys, it will be best to tie the keys to multiples of 256 bits.
+	16 256-bit keys are 4k large. but we cannot use this size as the default number of inodes in the system means there is one inode per 16k (16384 bytes)
+	Therefore we should place at least 64 256bit keys in a file at a time.
+Since ~100mb files work well, it feels natural to make the smaller files into 100mb folders.
+100007936 ÷ 16384 = 6104 files per folder
+
