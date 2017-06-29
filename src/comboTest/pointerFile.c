@@ -9,40 +9,48 @@
 
 //create a new pointer file
 struct pointerFile *createPtrFile(char *dir, unsigned char mode) {
-	//create the save path
-	char ptrSavePath[267];
-	sprintf(ptrSavePath, "%s/nextAvailible.ptr", dir);
-	//ptr file is made up of a file/folder name and offset from the start of that file/folder
-	FILE *fd = fopen(ptrSavePath, "wb");
-	uint16_t currentFile = 0;
-	uint32_t byteNum = 0;
 
 	//copy the data into the ptr
 	struct pointerFile *ptr = malloc(sizeof(struct pointerFile));
-	strcpy(ptr->filePath, ptrSavePath);
-	ptr->currentFile = currentFile;
-	ptr->byteOffset = byteNum;
+	strcpy(ptr->dirPath, dir);
+	strcpy(ptr->filename, "nextAvailible.ptr");
+	ptr->currentFile = 0;
+	ptr->byteOffset = 0;
 	ptr->mode = mode;
 
-
-	fwrite(&ptr->currentFile, sizeof(ptr->currentFile), 1, fd);
-	fwrite(&ptr->byteOffset, sizeof(ptr->byteOffset), 1, fd);
-	fwrite(&mode, sizeof(mode), 1, fd);
-
-	fclose(fd);
+	savePtr(ptr);
 
 	return ptr;
 }
 
+int savePtr(struct pointerFile *ptr) {
+	//work out what to save the pointer as
+	char ptrSavePath[167];
+	sprintf(ptrSavePath, "%s/%s", ptr->dirPath, ptr->filename);
+	//open up the file
+	FILE *fd = fopen(ptrSavePath, "wb");
+
+	//fill in all the data
+	fwrite(&ptr->currentFile, sizeof(ptr->currentFile), 1, fd);
+	fwrite(&ptr->byteOffset, sizeof(ptr->byteOffset), 1, fd);
+	fwrite(&ptr->mode, sizeof(ptr->mode), 1, fd);
+
+	fclose(fd);
+}
+
 //create a struct from a existing file
-struct pointerFile *readPtrFile(char *dir) {
+struct pointerFile *readPtrFile(char *dir, char *filename) {
 	struct pointerFile *ptr = malloc(sizeof(struct pointerFile));
-	//change the path to be directly to the pointer file
+	//copy the dir to the struct
+	strcpy(ptr->dirPath, dir);
+	//copy the filename to the struct
+	strcpy(ptr->filename, filename);
+	//turn the dir and filename into full path
+	char filePath[267];
+	sprintf(filePath, "%s/%s", dir, ptr->filename);
+	//printf("Using path %s\n", ptr->dirPath);
 
-	sprintf(ptr->filePath, "%s/nextAvailible.ptr", dir);
-	//printf("Using path %s\n", ptr->filePath);
-
-	FILE *fd = fopen(ptr->filePath, "rb");
+	FILE *fd = fopen(filePath, "rb");
 
 
 	//read the ptr and put into struct
@@ -56,14 +64,17 @@ struct pointerFile *readPtrFile(char *dir) {
 		return NULL;
 
 	}
-	//printf("Read: %s offset = %u\n", ptr->filePath, ptr->byteOffset);
+	//printf("Read: %s offset = %u\n", ptr->dirPath, ptr->byteOffset);
 	return ptr;
 }
 
 //update a ptr file from its struct 
 struct pointerFile *updatePtrFile(struct pointerFile *ptr) {
+	char filePath[267];
+	sprintf(filePath, "%s/%s", ptr->dirPath, ptr->filename);
+
 	//setup write into file
-	FILE *fd = fopen(ptr->filePath, "wb");
+	FILE *fd = fopen(filePath, "wb");
 
 	if( fwrite(&ptr->currentFile, sizeof(uint16_t), 1, fd) != 1 ||
 		fwrite(&ptr->byteOffset, sizeof(uint32_t), 1, fd) != 1 ||
@@ -73,7 +84,7 @@ struct pointerFile *updatePtrFile(struct pointerFile *ptr) {
 		return NULL;
 	}
 
-	//printf("Wrote: %s offset = %u\n", ptr->filePath, ptr->byteOffset);
+	//printf("Wrote: %s offset = %u\n", ptr->dirPath, ptr->byteOffset);
 
 	return ptr;
 }
@@ -95,4 +106,20 @@ struct pointerFile *incrementPtrFile(struct pointerFile *ptr, uint64_t increment
 		ptr->byteOffset += increment;
 	}
 	updatePtrFile(ptr);
+}
+
+int mkPtrCopy(struct pointerFile *source, char *destName) {
+
+	struct pointerFile *dest = malloc(sizeof(struct pointerFile));
+
+	strcpy(dest-> dirPath, source->dirPath);
+	strcpy(dest->filename, destName);
+	dest->currentFile = source->currentFile;
+	//current offset into that file
+	dest->byteOffset = source->byteOffset;
+	//the mode being used, dir or file
+	dest->mode = source->mode;
+
+	savePtr(dest);
+
 }
