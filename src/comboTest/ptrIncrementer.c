@@ -9,7 +9,7 @@ uint32_t getFileSize(FILE *fd) {
 	return ftell(fd);
 }
 
-int oneTimePad(struct pointerFile *ptr, FILE *fd, uint32_t fileSize) {
+int oneTimePad(struct pointerFile *ptr, FILE *fd, uint32_t fileSize, char *outputname) {
 	//rewind the file
 	rewind(fd);
 
@@ -19,11 +19,14 @@ int oneTimePad(struct pointerFile *ptr, FILE *fd, uint32_t fileSize) {
 
 	FILE *fdKey = fopen(cryptoPath, "rb");
 
+	//seek to the correct part of the key
+	fseek(fdKey, ptr->byteOffset, SEEK_SET);
+
 	unsigned char inputByte;
 	unsigned char keyByte;
 	unsigned char cipherByte;
 
-	FILE *newCipher = fopen("output.txt", "wb");
+	FILE *newCipher = fopen(outputname, "wb");
 
 	for(uint32_t i = 0; i < fileSize; i++) {
 		fread(&inputByte, sizeof(char), 1, fd);
@@ -33,6 +36,9 @@ int oneTimePad(struct pointerFile *ptr, FILE *fd, uint32_t fileSize) {
 	}
 
 	printf("printed all the bits\n");
+
+	fclose(fdKey);
+	fclose(newCipher);
 }
 
 int main(int argc, char const *argv[]) {
@@ -64,9 +70,17 @@ int main(int argc, char const *argv[]) {
 		return -1;
 	}
 
-	oneTimePad(ptr, inputFile, fileSize);
+	//encrypt
+	oneTimePad(ptr, inputFile, fileSize, "crypted");
 
+
+	//decrypt
 	mkPtrCopy(ptr, "decrypt.ptr");
+
+	FILE *cipherTextIn = fopen("crypted", "rb");
+	fileSize = getFileSize(cipherTextIn);
+	printf("File to decryt size %u\n", fileSize);
+	oneTimePad(ptr, cipherTextIn, fileSize, "decrypted.txt");
 
 
 
