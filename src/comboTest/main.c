@@ -7,6 +7,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+#include "pointerFile.h"
 #include "openssl.h"
 
 #define LARGEBYTES 100003840
@@ -48,24 +49,8 @@ int writeFile(char *outputFile, uint32_t fileSize, struct aesState *state) {
 	return 0;
 }
 
-int mkPointerFile(char *dir) {
-	//create the save path
-	char ptrSavePath[267];
-	sprintf(ptrSavePath, "%s/nextAvailible.ptr", dir);
-	//ptr file is made up of a 15 char file name
-	//followed by a byte number up to 100003840
-	FILE *fd = fopen(ptrSavePath, "wb");
-	char currentFile[15] = "0.bin";
-	uint32_t byteNum = 0;
-
-	fwrite(currentFile, sizeof(currentFile), 1, fd);
-	fwrite(&byteNum, sizeof(byteNum), 1, fd);
-
-	fclose(fd);
-}
-
 int oneTimePadMode(char *path, uint32_t chunksNo, uint32_t fileSize) {
-	mkPointerFile(path);
+	createPtrFile(path, '0');
 
 	//create the struct for aes
 	struct aesState *state = aesRandStartup();
@@ -84,7 +69,7 @@ int oneTimePadMode(char *path, uint32_t chunksNo, uint32_t fileSize) {
 
 
 int symmetricMode(char *path, uint32_t chunksNo, uint32_t fileSize) {
-	mkPointerFile(path);
+	createPtrFile(path, '1');
 
 	//create the struct for aes
 	struct aesState *state = aesRandStartup();
