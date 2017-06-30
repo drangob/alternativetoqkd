@@ -37,3 +37,12 @@ To use the bits as a directory of symmetric keys, it will be best to tie the key
 Since ~100mb files work well, it feels natural to make the smaller files into 100mb folders.
 100007936 ÷ 16384 = 6104 files per folder
 
+
+When reading from the bits. we need to calculate where to read up to if we have an overflow as in the ptr struct increment we do this by
+offset / filesize = filesfilled
+offset % filesize = newoffset 
+
+In the system reading one time pad bits, we can still over-read into a new file, so this is useful - will generalise a reading funct where we can make this overspill reading easy
+
+
+in the key system, we can request keys as we please and we should never overspill - UNLESS we mix key sizes. We could use the same system as the one time pad to rectify this. Most likely will as it will all be bundled into the same API for reading bits 
