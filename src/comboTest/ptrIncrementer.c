@@ -4,6 +4,24 @@
 
 #include "pointerFile.h"
 
+unsigned char oneTimePadReadByte(FILE *fd, uint32_t fileSize, struct pointerFile *ptr, uint16_t *keyNum) {
+	unsigned char output;
+	if(ftell(fd) < fileSize) {
+		//printf("reading a byte WITHOUT overflow\n");
+	} else {
+		fclose(fd);
+
+		*keyNum += 1;
+
+		char keyPath[267];
+		sprintf(keyPath, "%s/%u.bin", ptr->dirPath, *keyNum);
+		fd = fopen(keyPath, "rb");
+	}
+	fread(&output, sizeof(char), 1, fd);
+	return output;
+}
+
+
 uint32_t getFileSize(FILE *fd) {
 	fseek(fd, 0L, SEEK_END);
 	return ftell(fd);
@@ -18,9 +36,15 @@ int oneTimePad(struct pointerFile *ptr, FILE *fd, uint32_t fileSize, char *outpu
 	sprintf(cryptoPath, "%s/%u.bin", ptr->dirPath, ptr->currentFile);
 
 	FILE *fdKey = fopen(cryptoPath, "rb");
+	uint32_t keyFileSize = getFileSize(fdKey);
+	rewind(fdKey);
 
 	//seek to the correct part of the key
 	fseek(fdKey, ptr->byteOffset, SEEK_SET);
+
+	//keynum in case it needs incrementing on read
+	uint16_t keyNum = 0; 
+	keyNum = ptr->currentFile;
 
 	unsigned char inputByte;
 	unsigned char keyByte;
@@ -30,7 +54,8 @@ int oneTimePad(struct pointerFile *ptr, FILE *fd, uint32_t fileSize, char *outpu
 
 	for(uint32_t i = 0; i < fileSize; i++) {
 		fread(&inputByte, sizeof(char), 1, fd);
-		fread(&keyByte, sizeof(char), 1, fdKey);
+		keyByte = oneTimePadReadByte(fdKey, keyFileSize, ptr, &keyNum);
+		//fread(&keyByte, sizeof(char), 1, fdKey);
 		cipherByte = inputByte ^ keyByte;
 		fwrite(&cipherByte, sizeof(char), 1, newCipher);
 	}
