@@ -5,7 +5,7 @@
 #include <stdint.h>
 #include <stdio.h>
 
-#define BYTES 100003840
+#define BYTES 100000000
 
 int encrypt(EVP_CIPHER_CTX *context, unsigned char *output);
 

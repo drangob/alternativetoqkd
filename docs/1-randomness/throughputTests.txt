@@ -15,20 +15,21 @@ Tests of /dev/random show throughput of:
 
 RDRAND is incredibly fast:
 RDRAND gave a throughput of
-	0.022365s = 44.71 MB/s
-	0.023165s = 43.17 MB/s
-	0.021080s = 47.44 MB/s
-
-	mean througput of 45.1 MB/s
+	1.571749s = 63.62 MB/s
+	1.563457s = 63.96 MB/s
+	1.561578s = 64.04 MB/s
 	
-	enabling us to fill a TB drive in 6 Hours, 09 Minutes and 32 Seconds
+	mean througput of 63.87 MB/s
+	
+	enabling us to fill a TB drive in 4 Hours, 20 Minutes and 56 Seconds
 	
 AES CTR mode seeded with /dev/random throughput:
-	100000000 bytes (100 MB), 	3.415327s, 29.281 MB/s
-					3.372338s, 29.654 MB/s
-					3.411566s, 29.313 MB/s
-	mean throughput of 29.416 MB/s
+	100000000 bytes (100 MB), 	0.422515s = 236.68 MB/s
+					0.398120s = 251.18 MB/s
+					0.412899s = 242.19 MB/s
+	mean throughput of 243.35 MB/s
+					
 	
-	enabling us to fill a TB drive in 9 Hours, 26 Minutes and 35 Seconds
+	enabling us to fill a TB drive in 1 Hours, 08 Minutes and 29 Seconds
 
 
