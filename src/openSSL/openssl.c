@@ -7,44 +7,58 @@
 
 #define BYTES 100003840
 
+int encrypt(EVP_CIPHER_CTX *context, unsigned char *output);
 
-int encrypt(__uint128_t *ctr, unsigned char *key, unsigned char *output);
+void errorHandling(char *str) {
+	printf("Error in encryption occurred.\n Error was in: %s\n", str);
+	exit(-1);
+}
 
-int sslSetup(void) {
+int sslSetup(EVP_CIPHER_CTX *context) {
 	//Initialise the library
 	ERR_load_crypto_strings();
 	OpenSSL_add_all_algorithms();
 	OPENSSL_config(NULL);	
-}
-
-int sslClose(void) {
-	EVP_cleanup();
-	ERR_free_strings();
-}
-
-void handleErrors(void){
-	printf("Error in encryption occurred.\n");
-	exit(-1);
-}
-
-int main (void) {
-	sslSetup();
-
-
-	double startTime = (double)clock()/CLOCKS_PER_SEC;
 
 	FILE *fdRand = fopen("/dev/random", "rb");
-	FILE *fd = fopen("data.bin", "wb");
-
 	//define 128bit key and read into it
 	unsigned char key[16];
 	fread(key, sizeof(char) * 16, 1, fdRand);
-
-	//128 bit counter to be incremented from random
-	__uint128_t ctr = 0;
-	fread(&ctr, sizeof(__uint128_t), 1, fdRand);
-
 	fclose(fdRand);
+
+	if(1 != EVP_CipherInit_ex(context, EVP_aes_128_ctr(), NULL, key, NULL ,1)) {
+		errorHandling("EncryptInit");
+	}
+
+}
+
+int sslClose(EVP_CIPHER_CTX *context) {
+	EVP_cleanup();
+	ERR_free_strings();
+
+	// Clean up 
+	EVP_CIPHER_CTX_free(context);
+}
+
+
+
+int main (void) {
+	double startTime = (double)clock()/CLOCKS_PER_SEC;
+
+	
+	FILE *fd = fopen("data.bin", "wb");
+
+
+
+
+	// Create context 
+	EVP_CIPHER_CTX *context;
+
+	if(!(context = EVP_CIPHER_CTX_new())) {
+		errorHandling("Context");
+	}
+
+	sslSetup(context);
 
 	//output
 	unsigned char output[16];
@@ -53,10 +67,11 @@ int main (void) {
 
 
 	for (int i = 0; i < (BYTES / 16); i++) {
-		ciphertext_len = encrypt (&ctr, key, output);
-		ctr++;
+		ciphertext_len = encrypt(context, output);
 		fwrite(output, ciphertext_len, 1, fd);
 	}
+
+
 
 	double endTime = (double)clock()/CLOCKS_PER_SEC;
 
@@ -64,36 +79,23 @@ int main (void) {
 
 	printf("%d bytes Took %fs\n", BYTES, timeElapsed);
 
-	sslClose();
+	sslClose(context);
 	return 0;
 }
 
 
-int encrypt(__uint128_t *ctr, unsigned char *key, unsigned char *output) {
-	EVP_CIPHER_CTX *context;
-
+int encrypt(EVP_CIPHER_CTX *context, unsigned char *output) {
 	int len;
 
-	int ciphertext_len;
+	char plaintext[] = "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
+	
+	
+	//encrypt some nulls to get the  
+	if(1 != EVP_CipherUpdate(context, output, &len, plaintext, sizeof(char)*16)){
+		errorHandling("Encrypt Update");
+	}
 
-	/* Create and initialise the context */
-	if(!(context = EVP_CIPHER_CTX_new())) handleErrors();
+	//EVP_CipherFinal_ex(context, output, &len);
 
-	/* Initialise the encryption operation. 
-		 Provide context, type of encryption, unknown, key and IV
-	*/
-	if(1 != EVP_EncryptInit_ex(context, EVP_aes_128_ecb(), NULL, key, NULL))
-		handleErrors();
-
-	/* Provide the message to be encrypted, and obtain the encrypted output.
-	 */
-	if(1 != EVP_EncryptUpdate(context, output, &len, (const unsigned char *)ctr, sizeof(__uint128_t)))
-		handleErrors();
-	ciphertext_len = len;
-
-	/* Clean up */
-	EVP_CIPHER_CTX_free(context);
-
-
-	return ciphertext_len;
+	return len;
 }

@@ -3,19 +3,11 @@
 
 #include <stdint.h>
 
-//struct for the state of the CSPRNG
-struct aesState {
-	unsigned char key[16];
-	__uint128_t ctr;
-};
+int nextRand(EVP_CIPHER_CTX *context, unsigned char *output);
 
-struct aesState *aesRandStartup(void);
-int aesRandTeardown(struct aesState *state);
-int nextRand(struct aesState *state, unsigned char *output);
-
-int encrypt(__uint128_t *ctr, unsigned char *key, unsigned char *output);
-int sslSetup(void);
-int sslClose(void);
-void handleErrors(void);
+int encrypt(EVP_CIPHER_CTX *context, unsigned char *output);
+int sslSetup(EVP_CIPHER_CTX *context);
+int sslClose(EVP_CIPHER_CTX *context);
+void errorHandling(char *str);
 
 #endif //_OPENSSH_H_

@@ -6,6 +6,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <openssl/evp.h>
 
 #include "pointerFile.h"
 #include "openssl.h"
@@ -13,8 +14,16 @@
 #define LARGEBYTES 100003840
 #define SMALLBYTES 16384
 
-int writeFile(char *outputFile, uint32_t fileSize, struct aesState *state) {
+int writeFile(char *outputFile, uint32_t fileSize) {
 	double startTime = (double)clock()/CLOCKS_PER_SEC;
+
+	// Create context and setup the ssl
+	EVP_CIPHER_CTX *context;
+	if(!(context = EVP_CIPHER_CTX_new())) {
+		errorHandling("Context");
+	}
+	sslSetup(context);
+
 
 	FILE *fd = fopen(outputFile,"wb");
 
@@ -26,7 +35,7 @@ int writeFile(char *outputFile, uint32_t fileSize, struct aesState *state) {
 
 	for (int i = 0; i < (fileSize / 16); i++) {
 		//get the next random
-		nextRand(state, output);
+		nextRand(context, output);
 
 		//get random twice - because the aes output is 128 bits
 		for (int i = 0; i < 2; i++) {
@@ -40,6 +49,8 @@ int writeFile(char *outputFile, uint32_t fileSize, struct aesState *state) {
 
 	fclose(fd);
 
+	sslClose(context);
+
 	double endTime = (double)clock()/CLOCKS_PER_SEC;
 
 	double timeElapsed = endTime - startTime;
@@ -52,27 +63,19 @@ int writeFile(char *outputFile, uint32_t fileSize, struct aesState *state) {
 int oneTimePadMode(char *path, uint32_t chunksNo, uint32_t fileSize) {
 	createPtrFile(path, '0');
 
-	//create the struct for aes
-	struct aesState *state = aesRandStartup();
-
 	//write different files to consecutive file names
 	char filename[265];
 	for (uint32_t i = 0; i < chunksNo; i++) {
 		printf(filename, "%s/%u.bin", path, i);
 		//edit the file name on each loop
 		sprintf(filename, "%s/%u.bin", path, i);
-		writeFile(filename, fileSize, state);
+		writeFile(filename, fileSize);
 	}
-	//get rid of the struct afterwards
-	aesRandTeardown(state);
 }
 
 
 int symmetricMode(char *path, uint32_t chunksNo, uint32_t fileSize) {
 	createPtrFile(path, '1');
-
-	//create the struct for aes
-	struct aesState *state = aesRandStartup();
 
 	char foldername[265];
 	//make the required number of folders
@@ -84,11 +87,9 @@ int symmetricMode(char *path, uint32_t chunksNo, uint32_t fileSize) {
 		for (uint32_t i = 0; i < 6104; i++) {
 			//edit the file name on each loop
 			sprintf(filename, "%s/%u.bin", foldername, i);
-			writeFile(filename, fileSize, state);
+			writeFile(filename, fileSize);
 		}
 	}
-	//get rid of the struct afterwards
-	aesRandTeardown(state);
 }
 
 int main(int argc, char const *argv[]) {
