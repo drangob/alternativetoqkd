@@ -11,12 +11,16 @@
 
 int shred(char *filename, int upToByte) {
 	if (fork() == 0) {//if we are the fork
-		execl("/usr/bin/shred", "/usr/bin/shred", filename, "-s", upToByte, NULL);
+		printf("shredding!\n");
+		char bytes[10];
+		sprintf(bytes, "%u", upToByte);
+		execl("/usr/bin/shred", "/usr/bin/shred", filename, "-z", "-s", bytes, NULL);
 	} else {
 		wait(NULL);
 		return 0;
 	}
 }
+
 
 unsigned char oneTimePadReadByte(FILE *fd, uint32_t fileSize, struct pointerFile *ptr, uint16_t *keyNum) {
 	unsigned char output;
@@ -57,8 +61,7 @@ int oneTimePad(struct pointerFile *ptr, FILE *fd, uint32_t fileSize, char *outpu
 	fseek(fdKey, ptr->byteOffset, SEEK_SET);
 
 	//keynum in case it needs incrementing on read
-	uint16_t keyNum = 0; 
-	keyNum = ptr->currentFile;
+	uint16_t keyNum = ptr->currentFile;
 
 	unsigned char inputByte;
 	unsigned char keyByte;
@@ -74,10 +77,32 @@ int oneTimePad(struct pointerFile *ptr, FILE *fd, uint32_t fileSize, char *outpu
 		fwrite(&cipherByte, sizeof(char), 1, newCipher);
 	}
 
-	printf("printed all the bits\n");
-
 	fclose(fdKey);
 	fclose(newCipher);
+
+	//do shredding
+	//if there is overspill then we need to do multiple files
+	if(ptr->byteOffset + fileSize > keyFileSize) {
+		//calculate the files we have used up completely
+		int usedFiles = fileSize / keyFileSize;
+		int leftoverOffset = fileSize % keyFileSize;
+		//for each file we've filled, shred the whole thing
+		int i = ptr->currentFile;
+		for (; i < usedFiles; ++i) {
+			char fileToShred[270];
+			sprintf(fileToShred, "%s/%u.bin", ptr->dirPath, i);
+			shred(fileToShred, keyFileSize);
+		}
+		//shred into the last file
+		i++;
+		char fileToShred[270];
+		sprintf(fileToShred, "%s/%u.bin", ptr->dirPath, i);
+		shred(fileToShred, leftoverOffset);
+	} else { //we didnt overspill - easy shredding
+		shred(cryptoPath, ptr->byteOffset + fileSize);
+	}
+
+	
 }
 
 void saveSymmetricKey(struct pointerFile *ptr, unsigned int keySize, char *saveLoc) {
@@ -110,6 +135,9 @@ void saveSymmetricKey(struct pointerFile *ptr, unsigned int keySize, char *saveL
 
 	fclose(saveFd);
 
+
+	// shred up to where we now are
+	shred(sourcePath, (ptr->byteOffset + keySizeInBytes));
 
 }
 
@@ -151,14 +179,18 @@ int main(int argc, char const *argv[]) {
 		//decrypt
 		mkPtrCopy(ptr, "decrypt.ptr");
 
-		FILE *cipherTextIn = fopen("crypted", "rb");
-		fileSize = getFileSize(cipherTextIn);
-		printf("File to decryt size %u\n", fileSize);
-		oneTimePad(ptr, cipherTextIn, fileSize, "decrypted.txt");
+
+		////now we are shredding this is like not useful to test
+
+		// FILE *cipherTextIn = fopen("crypted", "rb");
+		// fileSize = getFileSize(cipherTextIn);
+		// printf("File to decryt size %u\n", fileSize);
+		// oneTimePad(ptr, cipherTextIn, fileSize, "decrypted.txt");
 
 		incrementPtrFile(ptr, fileSize);
 	} else {
 		saveSymmetricKey(ptr, 256, "/mnt/randomUSB/key.bin");
+		incrementPtrFile(ptr, 32);
 
 	}
 	
