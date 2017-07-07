@@ -100,7 +100,8 @@ int main(int argc, char const *argv[]) {
 	}
 	//get path
 	char path[250];
-	printf("Please enter the full path of the directory for storage\n");
+	printf("Please enter the full path of the directory for storage.\n
+			ENSURE THAT THIS IS EXT4 AND JOURNALLING IS DISABLED.");
 	scanf("%s", path);
 	//get amount of data to generate
 	uint32_t chunksNo = 0;
