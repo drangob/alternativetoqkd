@@ -6,7 +6,7 @@
 int nextRand(EVP_CIPHER_CTX *context, unsigned char *output);
 
 int encrypt(EVP_CIPHER_CTX *context, unsigned char *output);
-int sslSetup(EVP_CIPHER_CTX *context);
+EVP_CIPHER_CTX *sslSetup(void);
 int sslClose(EVP_CIPHER_CTX *context);
 void errorHandling(char *str);
 

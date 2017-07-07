@@ -7,11 +7,11 @@
 
 #include "openssl.h"
 
-int sslSetup(EVP_CIPHER_CTX *context) {
+EVP_CIPHER_CTX *sslSetup(void) {
 	//Initialise the library
 	ERR_load_crypto_strings();
 	OpenSSL_add_all_algorithms();
-	OPENSSL_config(NULL);	
+	OPENSSL_config(NULL);
 
 	FILE *devRandomfd = fopen("/dev/random", "rb");
 
@@ -19,10 +19,18 @@ int sslSetup(EVP_CIPHER_CTX *context) {
 	unsigned char key[16];
 	fread(key, sizeof(char) * 16, 1, devRandomfd);
 	fclose(devRandomfd);
+
+	// Create context and setup the ssl
+	EVP_CIPHER_CTX *context = malloc(sizeof(EVP_CIPHER_CTX));
+	if(!(context = EVP_CIPHER_CTX_new())) {
+		errorHandling("Context");
+	}
 		
 	if(1 != EVP_CipherInit_ex(context, EVP_aes_128_ctr(), NULL, key, NULL ,1)) {
 		errorHandling("EncryptInit");
 	}
+
+	return context;
 }
 
 int sslClose(EVP_CIPHER_CTX *context) {

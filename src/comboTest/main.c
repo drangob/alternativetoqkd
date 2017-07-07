@@ -14,16 +14,8 @@
 #define LARGEBYTES 100003840
 #define SMALLBYTES 16384
 
-int writeFile(char *outputFile, uint32_t fileSize) {
-	double startTime = (double)clock()/CLOCKS_PER_SEC;
-
-	// Create context and setup the ssl
-	EVP_CIPHER_CTX *context;
-	if(!(context = EVP_CIPHER_CTX_new())) {
-		errorHandling("Context");
-	}
-	sslSetup(context);
-
+int writeFile(char *outputFile, uint32_t fileSize, EVP_CIPHER_CTX *context) {
+	//double startTime = (double)clock()/CLOCKS_PER_SEC;
 
 	FILE *fd = fopen(outputFile,"wb");
 
@@ -35,7 +27,7 @@ int writeFile(char *outputFile, uint32_t fileSize) {
 
 	for (int i = 0; i < (fileSize / 16); i++) {
 		//get the next random
-		nextRand(context, output);
+		encrypt(context, output);
 
 		//get random twice - because the aes output is 128 bits
 		for (int i = 0; i < 2; i++) {
@@ -49,13 +41,11 @@ int writeFile(char *outputFile, uint32_t fileSize) {
 
 	fclose(fd);
 
-	sslClose(context);
+	// double endTime = (double)clock()/CLOCKS_PER_SEC;
 
-	double endTime = (double)clock()/CLOCKS_PER_SEC;
+	// double timeElapsed = endTime - startTime;
 
-	double timeElapsed = endTime - startTime;
-
-	printf("%s: %d bytes Took %fs\n",outputFile, fileSize, timeElapsed);
+	// printf("%s: %d bytes Took %fs\n",outputFile, fileSize, timeElapsed);
 
 	return 0;
 }
@@ -66,10 +56,13 @@ int oneTimePadMode(char *path, uint32_t chunksNo, uint32_t fileSize) {
 	//write different files to consecutive file names
 	char filename[265];
 	for (uint32_t i = 0; i < chunksNo; i++) {
-		printf(filename, "%s/%u.bin", path, i);
+		//create a new context each file to effectively swap out the key each time
+		EVP_CIPHER_CTX *context = sslSetup();
+		
 		//edit the file name on each loop
 		sprintf(filename, "%s/%u.bin", path, i);
-		writeFile(filename, fileSize);
+		writeFile(filename, fileSize, context);
+		sslClose(context);
 	}
 }
 
@@ -80,6 +73,9 @@ int symmetricMode(char *path, uint32_t chunksNo, uint32_t fileSize) {
 	char foldername[265];
 	//make the required number of folders
 	for (int i = 0; i < chunksNo; ++i) {
+		//create a new context for each folder, causing the keys to be rotated at that point
+		EVP_CIPHER_CTX *context = sslSetup();
+
 		sprintf(foldername, "%s/%u", path, i);
 		mkdir(foldername, 0700);
 		//write different files to consecutive file names
@@ -87,8 +83,9 @@ int symmetricMode(char *path, uint32_t chunksNo, uint32_t fileSize) {
 		for (uint32_t i = 0; i < 6104; i++) {
 			//edit the file name on each loop
 			sprintf(filename, "%s/%u.bin", foldername, i);
-			writeFile(filename, fileSize);
+			writeFile(filename, fileSize, context);
 		}
+		sslClose(context);
 	}
 }
 

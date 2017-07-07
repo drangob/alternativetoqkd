@@ -3,6 +3,7 @@ Look into using wireguard PSK with the system.
 		We specify the PSK in a file. is this file pulled into the rekeying mechanism on each rekey?
 		If this is the case - 
 			reducing the constants of the rekeying time, then updating the PSK file on each side of the transmission in sync to keep using our random bitstream.
+	Regardless, we need to fill a single file with 256 bits for wireguard
 
 
 Deletion of used data
