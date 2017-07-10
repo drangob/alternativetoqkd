@@ -4,13 +4,18 @@ Look into using wireguard PSK with the system.
 		If this is the case - 
 			reducing the constants of the rekeying time, then updating the PSK file on each side of the transmission in sync to keep using our random bitstream.
 	Regardless, we need to fill a single file with 256 bits for wireguard
+	
+	WireGuard requires the key in base64. this needs to be done when saving the key file - this allows the key to be fed into wireguard.
+		When the rekey is done, wireguard will not re-read the key from the file. we can force it to do this by firing the command "wg set wg0 peer <key> preshared-key <PSK>"
+			this would mean it would be fed into the mix on the next rekey - this seems like it would work well.
+
 
 
 Deletion of used data
-	secure deletion of data isnt very easy
+	secure deletion of data isnt very easy - the gutmann method exists but it made really difficult by modern file-systems.
 	Could be tempted to use GNU "shred" on an already used file once we are done with it - this will ONLY work if we have disabled the journalling on ext4
 		Disbaling the journal is easily done. Therefore this is decent idea.
-		We can even shred a specified number of bytes! This is very useful
+		We can even shred a specified number of bytes! This is very useful to shred out parts of our key file as we use it.
 
 
 Modes of operation:
