@@ -58,3 +58,18 @@ int encrypt(EVP_CIPHER_CTX *context, unsigned char *output) {
 	//EVP_CipherFinal_ex(context, output, &len);
 	return len;
 }
+
+
+void rekey(EVP_CIPHER_CTX *context) {
+	FILE *devRandomfd = fopen("/dev/random", "rb");
+
+	//define 128bit key and read into it
+	unsigned char key[16];
+	fread(key, sizeof(char) * 16, 1, devRandomfd);
+	fclose(devRandomfd);
+
+	if(1 != EVP_CipherInit_ex(context, EVP_aes_128_ctr(), NULL, key, NULL ,1)) {
+		errorHandling("EncryptInit");
+	}
+
+}

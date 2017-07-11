@@ -5,6 +5,7 @@
 #include <immintrin.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/time.h>
 #include <unistd.h>
 #include <openssl/evp.h>
 
@@ -15,7 +16,12 @@
 #define SMALLBYTES 16384
 
 int writeFile(char *outputFile, uint32_t fileSize, EVP_CIPHER_CTX *context) {
+	printf("Writing file %s\n", outputFile);
+
 	//double startTime = (double)clock()/CLOCKS_PER_SEC;
+	struct timeval tv1, tv2;
+	gettimeofday(&tv1, NULL);
+
 
 	FILE *fd = fopen(outputFile,"wb");
 
@@ -25,9 +31,18 @@ int writeFile(char *outputFile, uint32_t fileSize, EVP_CIPHER_CTX *context) {
 	//container for RDRAND randoms
 	unsigned long long longRand;
 
+	const int rekeysPerFile = 500;
+
 	for (int i = 0; i < (fileSize / 16); i++) {
 		//get the next random
 		encrypt(context, output);
+
+		//printf("%i\n", rekeyCtr);
+
+		if ((i % (fileSize/16) / rekeysPerFile) == 0) {
+			//puts("rekeying");
+			rekey(context);	
+		} 
 
 		//get random twice - because the aes output is 128 bits
 		for (int i = 0; i < 2; i++) {
@@ -39,14 +54,18 @@ int writeFile(char *outputFile, uint32_t fileSize, EVP_CIPHER_CTX *context) {
 		fwrite(output, sizeof(unsigned char) * 16, 1, fd);
 	}
 
-	fclose(fd);
+
+	
 
 	// double endTime = (double)clock()/CLOCKS_PER_SEC;
-
+	gettimeofday(&tv2, NULL);
 	// double timeElapsed = endTime - startTime;
+	struct timeval tvdiff = { tv2.tv_sec - tv1.tv_sec, tv2.tv_usec - tv1.tv_usec };
+	if (tvdiff.tv_usec < 0) { tvdiff.tv_usec += 1000000; tvdiff.tv_sec -= 1; }
 
-	// printf("%s: %d bytes Took %fs\n",outputFile, fileSize, timeElapsed);
 
+	printf("%s: bytes Took %ld.%06ld\n",outputFile, tvdiff.tv_sec, tvdiff.tv_usec);
+fclose(fd);
 	return 0;
 }
 
@@ -61,6 +80,7 @@ int oneTimePadMode(char *path, uint32_t chunksNo, uint32_t fileSize) {
 		
 		//edit the file name on each loop
 		sprintf(filename, "%s/%u.bin", path, i);
+
 		writeFile(filename, fileSize, context);
 		sslClose(context);
 	}
@@ -100,7 +120,7 @@ int main(int argc, char const *argv[]) {
 	}
 	//get path
 	char path[250];
-	printf("Please enter the full path of the directory for storage.\n ENSURE THAT THIS IS EXT4 AND JOURNALLING IS DISABLED.");
+	printf("Please enter the full path of the directory for storage.\n ENSURE THAT THIS IS EXT4 AND JOURNALLING IS DISABLED.\n");
 	scanf("%s", path);
 	//get amount of data to generate
 	uint32_t chunksNo = 0;

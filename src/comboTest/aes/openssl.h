@@ -10,4 +10,6 @@ EVP_CIPHER_CTX *sslSetup(void);
 int sslClose(EVP_CIPHER_CTX *context);
 void errorHandling(char *str);
 
+void rekey(EVP_CIPHER_CTX *context);
+
 #endif //_OPENSSH_H_
