@@ -14,10 +14,10 @@
 
 #define LARGEBYTES 100003840
 #define SMALLBYTES 16384
+#define REKEYBYTES 100003840 / 300
 
 int writeFile(char *outputFile, uint32_t fileSize, EVP_CIPHER_CTX *context) {
 
-	//double startTime = (double)clock()/CLOCKS_PER_SEC;
 	struct timeval tv1, tv2;
 	gettimeofday(&tv1, NULL);
 
@@ -30,16 +30,15 @@ int writeFile(char *outputFile, uint32_t fileSize, EVP_CIPHER_CTX *context) {
 	//container for RDRAND randoms
 	unsigned long long longRand;
 
-	const int rekeysPerFile = 4;
+	//put the rekeys into per outputted 16 byte increments
+	const unsigned int rekeysPerOutput = REKEYBYTES / 16;
 
 	for (int i = 0; i < (fileSize / 16); i++) {
 		//get the next random
 		encrypt(context, output);
 
-		//printf("%i\n", rekeyCtr);
-
-		if ((i % (fileSize/16) / rekeysPerFile) == 0) {
-			//puts("rekeying");
+		//every 
+		if (i % rekeysPerOutput == 0) {
 			rekey(context);	
 		} 
 

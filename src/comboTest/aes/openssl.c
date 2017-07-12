@@ -5,6 +5,8 @@
 #include <stdint.h>
 #include <stdio.h>
 
+#include <sys/time.h>
+
 #include "openssl.h"
 
 EVP_CIPHER_CTX *sslSetup(void) {
@@ -17,7 +19,7 @@ EVP_CIPHER_CTX *sslSetup(void) {
 
 	//define 128bit key and read into it
 	unsigned char key[16];
-	fread(key, sizeof(char) * 16, 1, devRandomfd);
+	fread(key, 1, sizeof(char)*16, devRandomfd);
 	fclose(devRandomfd);
 
 	// Create context and setup the ssl
@@ -61,15 +63,34 @@ int encrypt(EVP_CIPHER_CTX *context, unsigned char *output) {
 
 
 void rekey(EVP_CIPHER_CTX *context) {
+
+	 // struct timeval tv1, tv2;
+	 // gettimeofday(&tv1, NULL);
+
+	
 	FILE *devRandomfd = fopen("/dev/random", "rb");
 
 	//define 128bit key and read into it
 	unsigned char key[16];
-	fread(key, sizeof(char) * 16, 1, devRandomfd);
+	if (fread(key, 1, sizeof(char)*16, devRandomfd)!=16){
+		printf("Read bad\n");
+		exit(1);
+	}
 	fclose(devRandomfd);
 
 	if(1 != EVP_CipherInit_ex(context, EVP_aes_128_ctr(), NULL, key, NULL ,1)) {
 		errorHandling("EncryptInit");
 	}
+
+	 // gettimeofday(&tv2, NULL);
+	 // struct timeval tvdiff = { tv2.tv_sec - tv1.tv_sec, tv2.tv_usec - tv1.tv_usec };
+	 // if (tvdiff.tv_usec < 0) { tvdiff.tv_usec += 1000000; tvdiff.tv_sec -= 1; }
+
+	 // if (tvdiff.tv_usec > 000150) {
+	 // 	printf("----rekey took %ld.%06ld\n", tvdiff.tv_sec, tvdiff.tv_usec);
+	 // } else {
+	 // 	printf("rekey took %ld.%06ld\n", tvdiff.tv_sec, tvdiff.tv_usec);	
+	 // }
+	 
 
 }
