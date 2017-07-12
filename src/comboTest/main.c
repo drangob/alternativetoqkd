@@ -16,7 +16,6 @@
 #define SMALLBYTES 16384
 
 int writeFile(char *outputFile, uint32_t fileSize, EVP_CIPHER_CTX *context) {
-	printf("Writing file %s\n", outputFile);
 
 	//double startTime = (double)clock()/CLOCKS_PER_SEC;
 	struct timeval tv1, tv2;
@@ -31,7 +30,7 @@ int writeFile(char *outputFile, uint32_t fileSize, EVP_CIPHER_CTX *context) {
 	//container for RDRAND randoms
 	unsigned long long longRand;
 
-	const int rekeysPerFile = 500;
+	const int rekeysPerFile = 4;
 
 	for (int i = 0; i < (fileSize / 16); i++) {
 		//get the next random
@@ -64,8 +63,19 @@ int writeFile(char *outputFile, uint32_t fileSize, EVP_CIPHER_CTX *context) {
 	if (tvdiff.tv_usec < 0) { tvdiff.tv_usec += 1000000; tvdiff.tv_sec -= 1; }
 
 
-	printf("%s: bytes Took %ld.%06ld\n",outputFile, tvdiff.tv_sec, tvdiff.tv_usec);
-fclose(fd);
+	printf("Getting bytes took %ld.%06ld\n", tvdiff.tv_sec, tvdiff.tv_usec);
+
+
+	struct timeval tv3, tv4;
+	gettimeofday(&tv3, NULL);
+
+	fclose(fd);
+
+	gettimeofday(&tv4, NULL);
+	struct timeval tvdiff2 = { tv4.tv_sec - tv3.tv_sec, tv4.tv_usec - tv3.tv_usec };
+	if (tvdiff2.tv_usec < 0) { tvdiff2.tv_usec += 1000000; tvdiff2.tv_sec -= 1; }
+	printf("Writing to disk took %ld.%06ld\n", tvdiff2.tv_sec, tvdiff2.tv_usec);
+
 	return 0;
 }
 
