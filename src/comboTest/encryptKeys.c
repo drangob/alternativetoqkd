@@ -73,24 +73,47 @@ int encryptKeyFiles(char *path) {
 	char keyFileName[275] = "";
 
 	char *outputKey;
-	//infinite loop
+	//infinite loop until we cant read a file 
 	for (int i = 0; i > -1; ++i) {
 		//get the key file names
 		sprintf(keyFileName, "%s/%d.bin", path, i);
-		printf("%s\n", keyFileName);
 		outputKey = crypto(keyFileName, NULL);
-		if(outputKey == NULL) break;
-		printf("%s\n", outputKey);
+		if(outputKey == NULL) {
+			free(outputKey);
+			break;
+		}
+		//printf("%s\n", outputKey);
 		fwrite(outputKey, 16, 1, fd);
 		free(outputKey);
 	}
+
+	fclose(fd);
 }
 
 	
 
 
-int decryptKeyFiles(char *path, char *key) {
-	crypto(path, key);	
+int decryptKeyFiles(char *path) {
+	char inputFile[250] = "";
+	sprintf(inputFile, "%s/keys", path);
+
+	FILE *fd = fopen(inputFile, "r");
+	char decryptKey[16];
+	char *outputKey;
+
+	char keyFileName[275] = "";
+
+	for (int i = 0; i > -1; i++) {
+		sprintf(keyFileName, "%s/%d.bin", path, i);
+		fread(decryptKey, 16, 1, fd);
+		outputKey = crypto(keyFileName, decryptKey);
+		if(outputKey == NULL) {
+			free(outputKey);
+			break;
+		}
+	}
+
+	fclose(fd);
 }
 
 
@@ -106,7 +129,7 @@ int main(int argc, char *argv[]) {
 	scanf("%s", path);
 
 	if(isDecrypt){
-
+		decryptKeyFiles(path);
 	} else {
 		encryptKeyFiles(path);
 	}
