@@ -85,7 +85,7 @@ int oneTimePadMode(char *path, uint32_t chunksNo, uint32_t fileSize) {
 	char filename[265];
 	for (uint32_t i = 0; i < chunksNo; i++) {
 		//create a new context each file to effectively swap out the key each time
-		EVP_CIPHER_CTX *context = sslSetup();
+		EVP_CIPHER_CTX *context = sslSetup(NULL, NULL);
 		
 		//edit the file name on each loop
 		sprintf(filename, "%s/%u.bin", path, i);
@@ -103,7 +103,7 @@ int symmetricMode(char *path, uint32_t chunksNo, uint32_t fileSize) {
 	//make the required number of folders
 	for (int i = 0; i < chunksNo; ++i) {
 		//create a new context for each folder, causing the keys to be rotated at that point
-		EVP_CIPHER_CTX *context = sslSetup();
+		EVP_CIPHER_CTX *context = sslSetup(NULL, NULL);
 
 		sprintf(foldername, "%s/%u", path, i);
 		mkdir(foldername, 0700);

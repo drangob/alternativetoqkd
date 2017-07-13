@@ -9,18 +9,27 @@
 
 #include "openssl.h"
 
-EVP_CIPHER_CTX *sslSetup(void) {
+EVP_CIPHER_CTX *sslSetup(unsigned char keyOut[16], unsigned char keyIn[16]) {
 	//Initialise the library
 	ERR_load_crypto_strings();
 	OpenSSL_add_all_algorithms();
 	OPENSSL_config(NULL);
 
-	FILE *devRandomfd = fopen("/dev/random", "rb");
-
 	//define 128bit key and read into it
 	unsigned char key[16];
-	fread(key, 1, sizeof(char)*16, devRandomfd);
-	fclose(devRandomfd);
+	//if the user specifies a keyIn they want to provide a key for crypto
+	if(keyIn != NULL) {
+		memcpy(key, keyIn, 16);
+	} else {
+		FILE *devRandomfd = fopen("/dev/random", "rb");
+		fread(key, 1, sizeof(char)*16, devRandomfd);
+		fclose(devRandomfd);
+	}
+
+	//if the user has specified keyout then they want to preserve the key
+	if(keyOut != NULL) {
+		strcpy(keyOut, key);
+	}
 
 	// Create context and setup the ssl
 	EVP_CIPHER_CTX *context = malloc(sizeof(EVP_CIPHER_CTX));

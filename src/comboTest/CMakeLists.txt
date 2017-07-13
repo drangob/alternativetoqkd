@@ -13,3 +13,6 @@ find_package(OpenSSL)
 target_link_libraries(RandomCombination ${OPENSSL_LIBRARIES})
 
 add_executable(PtrIncrementer ptrIncrementer.c pointerFile.c)
+
+add_executable(EncryptKeys encryptKeys.c)
+target_link_libraries(EncryptKeys opensslAES ${OPENSSL_LIBRARIES})
