@@ -10,13 +10,17 @@
 #include "openssl.h"
 
 
+int nextRand(EVP_CIPHER_CTX *context, unsigned char *output){
+	encrypt(context, output);
+}
+
 //256 bit encryption for the key files
 EVP_CIPHER_CTX *cfbSetup(unsigned char keyIn[32]){
 	ERR_load_crypto_strings();
 	OpenSSL_add_all_algorithms();
 	OPENSSL_config(NULL);
 
-	EVP_CIPHER_CTX *context = malloc(sizeof(EVP_CIPHER_CTX));
+	EVP_CIPHER_CTX *context; // = malloc(sizeof(EVP_CIPHER_CTX));
 	if(!(context = EVP_CIPHER_CTX_new())) {
 		errorHandling("Context");
 	}

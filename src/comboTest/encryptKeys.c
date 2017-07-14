@@ -3,6 +3,7 @@
 #include <string.h>
 #include <openssl/evp.h>
 #include <unistd.h>
+#include <sys/time.h>
 
 #include "bitGeneration.h"
 #include "openssl.h"
@@ -15,6 +16,10 @@ unsigned char *crypto(char *path, char inputKey[16]) {
 	
 	//if we fail to open return
 	if(fd == NULL) return NULL;
+	printf("Doing crypto job on: %s\n", path);
+
+	struct timeval tv1, tv2;
+	gettimeofday(&tv1, NULL);
 
 	FILE *fdw = fopen(path, "r+");
 
@@ -58,6 +63,11 @@ unsigned char *crypto(char *path, char inputKey[16]) {
 
 	//close reader without flushing
 	sslClose(context);
+
+	gettimeofday(&tv2, NULL);
+	struct timeval tvdiff = { tv2.tv_sec - tv1.tv_sec, tv2.tv_usec - tv1.tv_usec };
+	if (tvdiff.tv_usec < 0) { tvdiff.tv_usec += 1000000; tvdiff.tv_sec -= 1; }
+	printf("Job took: %ld.%06lds\n", tvdiff.tv_sec, tvdiff.tv_usec);
 
 	return key;
 }
@@ -113,6 +123,20 @@ int decryptKeyFiles(char *path) {
 	fclose(fd);
 }
 
+EVP_CIPHER_CTX *encryptKeyStreamSetup(char *keyFilePath) {
+	//setup the keystream context and save the key
+	unsigned char keyStreamInitKey[16];
+	EVP_CIPHER_CTX *context = sslSetup(keyStreamInitKey, NULL);
+
+	//open the file to save the keys
+	char outputFile[250] = "";
+	sprintf(outputFile, "%s/keys", keyFilePath);
+	FILE *fd = fopen(outputFile, "a");
+	fwrite(keyStreamInitKey, 16, 1, fd);
+	fclose(fd);
+
+	return context;
+}
 
 // int main(int argc, char *argv[]) {
 // 	int isDecrypt = -1;

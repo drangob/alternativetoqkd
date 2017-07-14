@@ -9,6 +9,7 @@
 #include <unistd.h>
 #include <openssl/evp.h>
 
+#include "encryptKeys.h"
 #include "pointerFile.h"
 #include "openssl.h"
 #include "bitGeneration.h"
@@ -22,7 +23,7 @@ uint32_t getFileSize(FILE *fd) {
 	return ftell(fd);
 }
 
-int writeFile(char *outputFile, uint32_t fileSize, EVP_CIPHER_CTX *context) {
+int writeFile(char *outputFile, uint32_t fileSize, EVP_CIPHER_CTX *keystreamContext, EVP_CIPHER_CTX *cipherContext) {
 
 	struct timeval tv1, tv2;
 	gettimeofday(&tv1, NULL);
@@ -33,6 +34,8 @@ int writeFile(char *outputFile, uint32_t fileSize, EVP_CIPHER_CTX *context) {
 	//128 bit output for aes
 	unsigned char output[16];
 
+	unsigned char cipher[16];
+
 	//container for RDRAND randoms
 	unsigned long long longRand;
 
@@ -41,11 +44,13 @@ int writeFile(char *outputFile, uint32_t fileSize, EVP_CIPHER_CTX *context) {
 
 	for (int i = 0; i < (fileSize / 16); i++) {
 		//get the next random
-		encrypt(context, output);
+		nextRand(keystreamContext, output);
+		nextRand(cipherContext, cipher);
 
-		//every 
+
+		//rekey at sensible interval 
 		if (i % rekeysPerOutput == 0) {
-			rekey(context);	
+			rekey(keystreamContext);
 		} 
 
 		//get random twice - because the aes output is 128 bits
@@ -53,6 +58,9 @@ int writeFile(char *outputFile, uint32_t fileSize, EVP_CIPHER_CTX *context) {
 			_rdrand64_step(&longRand);
 			//xor it
 			output[i*7] = output[i*7] ^ longRand;
+
+			//encrypt the data going into the output
+			output[i*7] = output[i*7] ^ cipher[i*7];
 		}
 
 		fwrite(output, sizeof(unsigned char) * 16, 1, fd);
@@ -93,46 +101,49 @@ int oneTimePadMode(char *path, uint32_t chunksNo, uint32_t fileSize) {
 		//create a new context each file to effectively swap out the key each time
 		EVP_CIPHER_CTX *context = sslSetup(NULL, NULL);
 		
+		EVP_CIPHER_CTX *cipherContext = encryptKeyStreamSetup(path);
+
 		//edit the file name on each loop
 		sprintf(filename, "%s/%u.bin", path, i);
 
-		writeFile(filename, fileSize, context);
+		writeFile(filename, fileSize, context, cipherContext);
 		sslClose(context);
+		sslClose(cipherContext);
 	}
 }
 
 
-int symmetricMode(char *path, uint32_t chunksNo, uint32_t fileSize) {
-	createPtrFile(path, '1');
+// int symmetricMode(char *path, uint32_t chunksNo, uint32_t fileSize) {
+// 	createPtrFile(path, '1');
 
-	char foldername[265];
-	//make the required number of folders
-	for (int i = 0; i < chunksNo; ++i) {
-		//create a new context for each folder, causing the keys to be rotated at that point
-		EVP_CIPHER_CTX *context = sslSetup(NULL, NULL);
+// 	char foldername[265];
+// 	//make the required number of folders
+// 	for (int i = 0; i < chunksNo; ++i) {
+// 		//create a new context for each folder, causing the keys to be rotated at that point
+// 		EVP_CIPHER_CTX *context = sslSetup(NULL, NULL);
 
-		sprintf(foldername, "%s/%u", path, i);
-		mkdir(foldername, 0700);
-		//write different files to consecutive file names
-		char filename[265];
-		for (uint32_t i = 0; i < 6104; i++) {
-			//edit the file name on each loop
-			sprintf(filename, "%s/%u.bin", foldername, i);
-			writeFile(filename, fileSize, context);
-		}
-		sslClose(context);
-	}
-}
+// 		sprintf(foldername, "%s/%u", path, i);
+// 		mkdir(foldername, 0700);
+// 		//write different files to consecutive file names
+// 		char filename[265];
+// 		for (uint32_t i = 0; i < 6104; i++) {
+// 			//edit the file name on each loop
+// 			sprintf(filename, "%s/%u.bin", foldername, i);
+// 			writeFile(filename, fileSize, context);
+// 		}
+// 		sslClose(context);
+// 	}
+// }
 
 int main(int argc, char const *argv[]) {
 	uint32_t fileSize;
 	//changing the mode changes the file size and the layout of the files
-	printf("Please choose a mode of operation:\n-One time pad mode  (0) \n-Symmetric key mode (1)\n");
-	char mode = ' ';
-	//loop until we get a mode
-	while(!(mode == '0' || mode == '1')) {
-		mode = getchar();
-	}
+	// printf("Please choose a mode of operation:\n-One time pad mode  (0) \n-Symmetric key mode (1)\n");
+	// char mode = ' ';
+	// //loop until we get a mode
+	// while(!(mode == '0' || mode == '1')) {
+	// 	mode = getchar();
+	// }
 	//get path
 	char path[250];
 	printf("Please enter the full path of the directory for storage.\n ENSURE THAT THIS IS EXT4 AND JOURNALLING IS DISABLED.\n");
@@ -143,13 +154,16 @@ int main(int argc, char const *argv[]) {
 	scanf("%u", &chunksNo);
 
 
-	if(mode == '0') {
+	// if(mode == '0') {
 		fileSize = LARGEBYTES;
 		oneTimePadMode(path, chunksNo, fileSize);
-	} else {
-		fileSize = SMALLBYTES;
-		symmetricMode(path, chunksNo, fileSize);
-	}
+		//encryptKeyFiles(path);
+
+
+	// } else {
+	// 	fileSize = SMALLBYTES;
+	// 	symmetricMode(path, chunksNo, fileSize);
+	// }
 	
 
 	return 0;
