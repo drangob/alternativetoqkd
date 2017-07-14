@@ -9,6 +9,26 @@
 
 #include "openssl.h"
 
+
+//256 bit encryption for the key files
+EVP_CIPHER_CTX *cfbSetup(unsigned char keyIn[32]){
+	ERR_load_crypto_strings();
+	OpenSSL_add_all_algorithms();
+	OPENSSL_config(NULL);
+
+	EVP_CIPHER_CTX *context = malloc(sizeof(EVP_CIPHER_CTX));
+	if(!(context = EVP_CIPHER_CTX_new())) {
+		errorHandling("Context");
+	}
+
+	if(1 != EVP_CipherInit_ex(context, EVP_aes_256_cfb(), NULL, keyIn, NULL ,1)) {
+		errorHandling("EncryptInit");
+	}
+
+	return context;
+}
+
+
 EVP_CIPHER_CTX *sslSetup(unsigned char keyOut[16], unsigned char keyIn[16]) {
 	//Initialise the library
 	ERR_load_crypto_strings();
@@ -31,7 +51,7 @@ EVP_CIPHER_CTX *sslSetup(unsigned char keyOut[16], unsigned char keyIn[16]) {
 		strcpy(keyOut, key);
 	}
 
-	// Create context and setup the ssl
+	// Create context and setup
 	EVP_CIPHER_CTX *context = malloc(sizeof(EVP_CIPHER_CTX));
 	if(!(context = EVP_CIPHER_CTX_new())) {
 		errorHandling("Context");
@@ -70,6 +90,14 @@ int encrypt(EVP_CIPHER_CTX *context, unsigned char *output) {
 	return len;
 }
 
+int cfbEncrypt(EVP_CIPHER_CTX *context, unsigned char *input, uint32_t inputSize, unsigned char *output) {
+	int len;
+	if(1 != EVP_CipherUpdate(context, output, &len, input, inputSize)) {
+		errorHandling("CFB Encrypt");
+	}
+	return 1;
+}
+
 
 void rekey(EVP_CIPHER_CTX *context) {
 
@@ -100,6 +128,4 @@ void rekey(EVP_CIPHER_CTX *context) {
 	 // } else {
 	 // 	printf("rekey took %ld.%06ld\n", tvdiff.tv_sec, tvdiff.tv_usec);	
 	 // }
-	 
-
 }

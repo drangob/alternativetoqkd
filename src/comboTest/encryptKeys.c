@@ -4,13 +4,10 @@
 #include <openssl/evp.h>
 #include <unistd.h>
 
+#include "bitGeneration.h"
 #include "openssl.h"
+#include "encryptKeys.h"
 
-
-uint32_t getFileSize(FILE *fd) {
-	fseek(fd, 0L, SEEK_END);
-	return ftell(fd);
-}
 
 unsigned char *crypto(char *path, char inputKey[16]) {
 	//open the file for reading and writing
@@ -117,26 +114,20 @@ int decryptKeyFiles(char *path) {
 }
 
 
-int main(int argc, char *argv[]) {
-	int isDecrypt = -1;
-	puts("encrypt(0) of decrypt(1)?");
-	while (!(isDecrypt==0 || isDecrypt==1)){
-		scanf("%d", &isDecrypt);
-	}
+// int main(int argc, char *argv[]) {
+// 	int isDecrypt = -1;
+// 	puts("encrypt(0) of decrypt(1)?");
+// 	while (!(isDecrypt==0 || isDecrypt==1)){
+// 		scanf("%d", &isDecrypt);
+// 	}
 	
-	puts("What is the path of your randoms?");
-	char path[250];
-	scanf("%s", path);
+// 	puts("What is the path of your randoms?");
+// 	char path[250];
+// 	scanf("%s", path);
 
-	if(isDecrypt){
-		decryptKeyFiles(path);
-	} else {
-		encryptKeyFiles(path);
-	}
-
-
-
-	
-
-
-}
+// 	if(isDecrypt){
+// 		decryptKeyFiles(path);
+// 	} else {
+// 		encryptKeyFiles(path);
+// 	}
+// }

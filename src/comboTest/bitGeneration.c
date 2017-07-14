@@ -11,10 +11,16 @@
 
 #include "pointerFile.h"
 #include "openssl.h"
+#include "bitGeneration.h"
 
 #define LARGEBYTES 100003840
 #define SMALLBYTES 16384
 #define REKEYBYTES 100003840 / 300
+
+uint32_t getFileSize(FILE *fd) {
+	fseek(fd, 0L, SEEK_END);
+	return ftell(fd);
+}
 
 int writeFile(char *outputFile, uint32_t fileSize, EVP_CIPHER_CTX *context) {
 
