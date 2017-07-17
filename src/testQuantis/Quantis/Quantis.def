@@ -1,0 +1,43 @@
+; Defines exports for Quantis library
+
+LIBRARY	"Quantis"
+
+; Functions exported using __declspec(dllexport)
+EXPORTS
+  ; Conversion.h
+  ConvertToDouble_01
+  ConvertToFloat_01
+  ConvertToInt
+  ConvertToShort
+
+  ; Quantis.h
+  QuantisBoardReset
+  QuantisCount
+  QuantisGetBoardVersion
+  QuantisGetDriverVersion
+  QuantisGetLibVersion
+  QuantisGetModulesCount
+  QuantisGetModulesDataRate
+  QuantisGetModulesMask
+  QuantisGetModulesPower
+  QuantisGetModulesStatus
+  QuantisGetSerialNumber
+  QuantisModulesDisable
+  QuantisModulesEnable
+  QuantisModulesReset
+  QuantisRead
+  QuantisReadDouble_01
+  QuantisReadFloat_01
+  QuantisReadInt
+  QuantisReadShort
+  QuantisReadScaledDouble
+  QuantisReadScaledFloat
+  QuantisReadScaledInt
+  QuantisReadScaledShort
+  QuantisStrError
+  
+  ; Scaling.h
+  ScaleDouble_01
+  ScaleFloat_01
+  ScaleInt
+  ScaleShort
