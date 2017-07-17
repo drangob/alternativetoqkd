@@ -1,6 +1,8 @@
 #ifndef _ENCRYPTKEYS_H_
 #define _ENCRYPTKEYS_H_
 
+#include <openssl/evp.h>
+
 int encryptKeyFiles(char *path);
 
 int decryptKeyFiles(char *path);
