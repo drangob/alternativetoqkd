@@ -8,6 +8,7 @@
 #include <sys/time.h>
 
 #include "openssl.h"
+#include "Quantis.h"
 
 
 int nextRand(EVP_CIPHER_CTX *context, unsigned char *output){
@@ -48,6 +49,14 @@ EVP_CIPHER_CTX *sslSetup(unsigned char keyOut[16], unsigned char keyIn[16]) {
 		FILE *devRandomfd = fopen("/dev/random", "rb");
 		fread(key, 1, sizeof(char)*16, devRandomfd);
 		fclose(devRandomfd);
+		//do quantis if we can
+		unsigned char quantisKey[16];
+		if( QuantisCount(QUANTIS_DEVICE_USB)){
+			if(QuantisRead(QUANTIS_DEVICE_USB, 0, quantisKey, 16) != 16) errorHandling("QuantisRead");
+			for (int i = 0; i < 16; i++) {
+				key[i] = key[i] ^ quantisKey[i];
+			}
+		}
 	}
 
 	//if the user has specified keyout then they want to preserve the key
@@ -107,7 +116,6 @@ void rekey(EVP_CIPHER_CTX *context) {
 
 	 // struct timeval tv1, tv2;
 	 // gettimeofday(&tv1, NULL);
-
 	
 	FILE *devRandomfd = fopen("/dev/random", "rb");
 
@@ -118,6 +126,15 @@ void rekey(EVP_CIPHER_CTX *context) {
 		exit(1);
 	}
 	fclose(devRandomfd);
+
+
+	unsigned char quantisKey[16];
+	if( QuantisCount(QUANTIS_DEVICE_USB)){
+		if(QuantisRead(QUANTIS_DEVICE_USB, 0, quantisKey, 16) != 16) errorHandling("QuantisRead");
+		for (int i = 0; i < 16; i++) {
+			key[i] = key[i] ^ quantisKey[i];
+		}
+	}
 
 	if(1 != EVP_CipherInit_ex(context, EVP_aes_128_ctr(), NULL, key, NULL ,1)) {
 		errorHandling("EncryptInit");

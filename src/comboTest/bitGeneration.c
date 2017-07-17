@@ -30,6 +30,10 @@ int writeFile(char *outputFile, uint32_t fileSize, EVP_CIPHER_CTX *keystreamCont
 
 
 	FILE *fd = fopen(outputFile,"wb");
+	if (fd == NULL) {
+		perror("Opening file failed.");
+		exit(-1);
+	}
 
 	//128 bit output for aes
 	unsigned char output[16];
@@ -63,7 +67,10 @@ int writeFile(char *outputFile, uint32_t fileSize, EVP_CIPHER_CTX *keystreamCont
 			output[i*7] = output[i*7] ^ cipher[i*7];
 		}
 
-		fwrite(output, sizeof(unsigned char) * 16, 1, fd);
+		if(fwrite(output, sizeof(unsigned char) * 16, 1, fd) <16 ) {
+			perror("Writing data failed.");
+			exit(-1);
+		}
 	}
 
 
@@ -152,15 +159,19 @@ int main(int argc, char const *argv[]) {
 	uint32_t chunksNo = 0;
 	printf("Please enter how many ~100mb chunks of data you desire\n");
 	scanf("%u", &chunksNo);
+	if (chunksNo == 0){
+		printf("0 is not enough data. Please request more data.\n");
+		return -1;
+	}
 
 
 	// if(mode == '0') {
 		fileSize = LARGEBYTES;
 		oneTimePadMode(path, chunksNo, fileSize);
 		lockDownKeys(path);
-		lockDownKeys(path);
-		//encryptKeyFiles(path);
-
+		//symmetric
+		////lockDownKeys(path);
+		
 
 	// } else {
 	// 	fileSize = SMALLBYTES;

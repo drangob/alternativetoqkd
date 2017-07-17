@@ -18,7 +18,9 @@ struct pointerFile *createPtrFile(char *dir, unsigned char mode) {
 	ptr->byteOffset = 0;
 	ptr->mode = mode;
 
-	savePtr(ptr);
+	if (savePtr(ptr)){
+		exit(-1);
+	}
 
 	return ptr;
 }
@@ -30,12 +32,23 @@ int savePtr(struct pointerFile *ptr) {
 	//open up the file
 	FILE *fd = fopen(ptrSavePath, "wb");
 
-	//fill in all the data
-	fwrite(&ptr->currentFile, sizeof(ptr->currentFile), 1, fd);
-	fwrite(&ptr->byteOffset, sizeof(ptr->byteOffset), 1, fd);
-	fwrite(&ptr->mode, sizeof(ptr->mode), 1, fd);
+	//check for write error
+	if(fd == NULL){
+		perror("Opening pointerFile for saving failed");
+		return -1;
+	}
+
+	//fill in all the data 
+	if( fwrite(&ptr->currentFile, sizeof(ptr->currentFile), 1, fd) < sizeof(ptr->currentFile) ||
+	    fwrite(&ptr->byteOffset, sizeof(ptr->byteOffset), 1, fd) < sizeof(ptr->byteOffset) ||
+	    fwrite(&ptr->mode, sizeof(ptr->mode), 1, fd) < sizeof(ptr->mode)) {
+
+		puts("Could not write ptr");
+		return -1;
+	}
 
 	fclose(fd);
+	return 0;
 }
 
 //create a struct from a existing file

@@ -133,7 +133,16 @@ EVP_CIPHER_CTX *encryptKeyStreamSetup(char *keyFilePath) {
 	char outputFile[250] = "";
 	sprintf(outputFile, "%s/keys", keyFilePath);
 	FILE *fd = fopen(outputFile, "a");
-	fwrite(keyStreamInitKey, 16, 1, fd);
+
+	if(fd == NULL) {
+		perror("Opening encryption keys failed");
+		exit(-1);
+	}
+
+	if(fwrite(keyStreamInitKey, 16, 1, fd) < 16) {
+		perror("Writing encryption key failed");
+		exit(-1);
+	}
 	fclose(fd);
 
 	return context;

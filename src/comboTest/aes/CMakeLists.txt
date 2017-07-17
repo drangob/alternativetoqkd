@@ -6,3 +6,8 @@ add_library(opensslAES openssl.c)
 
 find_package(OpenSSL)
 target_link_libraries(opensslAES ${OPENSSL_LIBRARIES})
+
+include_directories(../Quantis)
+link_directories(../Quantis)
+
+target_link_libraries(opensslAES Quantis)
