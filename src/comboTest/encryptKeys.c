@@ -8,6 +8,7 @@
 #include "bitGeneration.h"
 #include "openssl.h"
 #include "encryptKeys.h"
+#include "scrypt/libscrypt.h"
 
 
 unsigned char *crypto(char *path, char inputKey[16]) {
@@ -136,6 +137,56 @@ EVP_CIPHER_CTX *encryptKeyStreamSetup(char *keyFilePath) {
 	fclose(fd);
 
 	return context;
+}
+
+int lockDownKeys(char *keyFilePath) {
+
+
+	char inputFile[250] = "";
+	sprintf(inputFile, "%s/keys", keyFilePath);
+
+	FILE *fd = fopen(inputFile, "r+");
+	uint32_t fileSize = getFileSize(fd);
+	rewind(fd);
+
+	//read the entire file into memory
+	char *fileContents = malloc(fileSize);
+	char *newFileContents = malloc(fileSize);
+	fread(fileContents, fileSize, 1, fd);
+	rewind(fd);
+
+	puts("Please enter a password to lock down the keys.");
+	char password[50];
+	scanf("%s", password);
+	int passwordlength = strlen(password);
+
+	//get the salt from the library if it does not exist
+	char salt[32];
+	int saltlength = 32;
+	char saltFile[250] = "";
+	sprintf(saltFile, "%s/salt", keyFilePath);
+
+	FILE *saltFd = fopen(saltFile, "r+");
+	//if the file does not exist we make one
+	if (saltFd == NULL) {
+		libscrypt_salt_gen(salt, 32);
+		saltFd = fopen(saltFile, "w");
+		fwrite(salt, saltlength, 1, saltFd);
+	} else { //if it existed we read it
+		fread(salt, saltlength, 1, saltFd);
+	}
+	fclose(saltFd);
+
+	//output of scrypt
+	char cfbKey[32];
+	libscrypt_scrypt(password, passwordlength, salt, saltlength, SCRYPT_N, SCRYPT_r, SCRYPT_p, cfbKey, 32);
+
+	EVP_CIPHER_CTX *cfbContext = cfbSetup(cfbKey);
+	cfbEncrypt(cfbContext, fileContents, fileSize, newFileContents);
+
+	fwrite(newFileContents, fileSize, 1, fd);
+	fclose(fd);
+
 }
 
 // int main(int argc, char *argv[]) {

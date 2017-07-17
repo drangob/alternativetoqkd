@@ -157,6 +157,8 @@ int main(int argc, char const *argv[]) {
 	// if(mode == '0') {
 		fileSize = LARGEBYTES;
 		oneTimePadMode(path, chunksNo, fileSize);
+		lockDownKeys(path);
+		lockDownKeys(path);
 		//encryptKeyFiles(path);
 
 
