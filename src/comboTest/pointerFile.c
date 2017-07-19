@@ -103,6 +103,12 @@ struct pointerFile *updatePtrFile(struct pointerFile *ptr) {
 }
 
 struct pointerFile *incrementPtrFile(struct pointerFile *ptr, uint64_t increment) {
+	//pointer file must increment in blocks of 16
+	if (increment % 16 != 0) {
+		increment = increment - (increment % 16);
+		increment+=16;
+	}
+
 	//if the current offset plus the increment is larger than the file
 	//move the ptr to the next file
 	if(ptr->byteOffset + increment > FILESIZE){

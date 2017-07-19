@@ -160,7 +160,7 @@ int oneTimePad(struct pointerFile *ptr, FILE *fd, uint32_t fileSize, char *outpu
 // }
 
 
-char *getBytes(char *path, struct pointerFile *ptr, uint32_t numOfBytes){
+char *getBytes(char *path, struct pointerFile *ptr, uint32_t numOfBytes) {
 	//get the current file out of the ptr file
 	char curFileName[267];
 	sprintf(curFileName, "%s/%u.bin", ptr->dirPath, ptr->currentFile);
@@ -188,6 +188,12 @@ char *getBytes(char *path, struct pointerFile *ptr, uint32_t numOfBytes){
 		sprintf(curFileName, "%s/%u.bin", ptr->dirPath, ptr->currentFile + i);		
 		//read the file into memory
 		char *keyFileContents = openFile(curFileName);
+		//check for shredded file contents
+		if (!memcmp(keyFileContents+ptr->byteOffset, "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0", 16)) {
+			printf("You are most likely reading from shredded data, as a result this process will abort.\n");
+			exit(-1);
+		}
+
 		//decrypt the file in memory
 		cryptFileBuffer(keyFileContents, keyFileSize, ptr->currentFile + i, path);
 
@@ -212,6 +218,9 @@ char *getBytes(char *path, struct pointerFile *ptr, uint32_t numOfBytes){
 
 		//free up the memory used by holding a whole file in memory
 		free(keyFileContents);
+
+		//shred to zero on the bits we just used
+		shred(curFileName, sourceOffset + numOfBytesToCopy);
 	}
 	lockDownKeys(path, 1);
 	return outputBytes;
