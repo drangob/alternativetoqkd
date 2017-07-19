@@ -4,8 +4,10 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <string.h>
 
 #include "pointerFile.h"
+#include "encryptKeys.h"
 
 #define SYMMETRIC_SIZE 16384
 
@@ -42,7 +44,23 @@ unsigned char oneTimePadReadByte(FILE *fd, uint32_t fileSize, struct pointerFile
 
 uint32_t getFileSize(FILE *fd) {
 	fseek(fd, 0L, SEEK_END);
-	return ftell(fd);
+	uint32_t size = ftell(fd);
+	rewind(fd);
+	return size;
+}
+
+//opens into memory and decrypts they key file
+char *openFile(char *filename) {
+	FILE *fd = fopen(filename, "rb");
+	uint32_t fileSize = getFileSize(fd);
+	//read the entire filecontents to a string
+	char *fileContents = malloc(fileSize);
+	if(fread(fileContents, 1, fileSize, fd) < fileSize) {
+		printf("Reading file to memory didnt work.\n");
+		exit(-1);
+	}
+	fclose(fd);
+	return fileContents;
 }
 
 int oneTimePad(struct pointerFile *ptr, FILE *fd, uint32_t fileSize, char *outputname) {
@@ -105,39 +123,98 @@ int oneTimePad(struct pointerFile *ptr, FILE *fd, uint32_t fileSize, char *outpu
 	
 }
 
-void saveSymmetricKey(struct pointerFile *ptr, unsigned int keySize, char *saveLoc) {
-	unsigned int keySizeInBytes = keySize / 8;
-	//calculate which file we need to look into 
-	unsigned int filenum = ptr->byteOffset / SYMMETRIC_SIZE;
-	unsigned int fileOffset = ptr->byteOffset % SYMMETRIC_SIZE;
-	//if we want to overspill into the next file, just error for now
-	if(fileOffset + keySizeInBytes > SYMMETRIC_SIZE) {
-		printf("Key too big- dying now\n");
-		exit(-1);
+// void saveSymmetricKey(struct pointerFile *ptr, unsigned int keySize, char *saveLoc) {
+// 	unsigned int keySizeInBytes = keySize / 8;
+// 	//calculate which file we need to look into 
+// 	unsigned int filenum = ptr->byteOffset / SYMMETRIC_SIZE;
+// 	unsigned int fileOffset = ptr->byteOffset % SYMMETRIC_SIZE;
+// 	//if we want to overspill into the next file, just error for now
+// 	if(fileOffset + keySizeInBytes > SYMMETRIC_SIZE) {
+// 		printf("Key too big- dying now\n");
+// 		exit(-1);
+// 	}
+// 	char sourcePath[270];
+// 	//open the desired file at th desired offset
+
+// 	sprintf(sourcePath, "%s/%u/%u.bin", ptr->dirPath, ptr->currentFile, filenum);
+// 	FILE *sourceFd = fopen(sourcePath, "rb");
+// 	if(sourceFd == NULL) perror("Opening src failed");
+// 	fseek(sourceFd, fileOffset, SEEK_SET);
+
+// 	//allocate a buffer for the key and read the key
+// 	unsigned char *key = malloc(sizeof(char) * keySizeInBytes);
+// 	fread(key, keySizeInBytes, 1, sourceFd);
+
+// 	fclose(sourceFd);
+
+// 	FILE *saveFd = fopen(saveLoc, "wb");
+// 	if(saveFd == NULL) perror("Opening dest failed");	
+// 	fwrite(key, keySizeInBytes, 1, saveFd);
+
+// 	fclose(saveFd);
+
+
+// 	// shred up to where we now are
+// 	shred(sourcePath, (ptr->byteOffset + keySizeInBytes));
+
+// }
+
+
+char *getBytes(char *path, struct pointerFile *ptr, uint32_t numOfBytes){
+	//get the current file out of the ptr file
+	char curFileName[267];
+	sprintf(curFileName, "%s/%u.bin", ptr->dirPath, ptr->currentFile);
+
+	//get the size of the keyfile
+	FILE *fd = fopen(curFileName, "r");
+	uint32_t keyFileSize = getFileSize(fd);
+	fclose(fd);
+
+	//calculate if we overspill into other files
+	int usedFiles = numOfBytes / keyFileSize;
+	int leftoverOffset = numOfBytes % keyFileSize;
+
+	//we are about to start reading files - we need access to the keys to decrypt them
+	lockDownKeys(path, 0);
+
+	//we need a big buffer to put the bytes into when read
+	char *outputBytes = malloc(numOfBytes);
+	uint32_t usedOutputBytes = 0;
+	uint32_t remainingRequiredBytes = numOfBytes;
+
+	//for each file we need to read into read it
+	for (int i = 0; i <= usedFiles; ++i) {
+		//new file name is ptr + for loop iteration
+		sprintf(curFileName, "%s/%u.bin", ptr->dirPath, ptr->currentFile + i);		
+		//read the file into memory
+		char *keyFileContents = openFile(curFileName);
+		//decrypt the file in memory
+		cryptFileBuffer(keyFileContents, keyFileSize, ptr->currentFile + i, path);
+
+		//if this is the first file then we need to copy from an offset
+		int sourceOffset = 0;
+		if(ptr->currentFile + i == ptr->currentFile) {
+			sourceOffset = ptr->byteOffset;
+		}
+		//calculate the amount of bytes we can copy
+		int numOfBytesToCopy = 0;
+		if(remainingRequiredBytes > keyFileSize) {
+			numOfBytesToCopy = keyFileSize;
+			remainingRequiredBytes = remainingRequiredBytes - keyFileSize;
+		} else {
+			numOfBytesToCopy = remainingRequiredBytes;
+			remainingRequiredBytes = 0;
+		}
+		//copy to the correct part of the output, some output from a keyfile, max num of availible required bytes
+		memcpy(&outputBytes[usedOutputBytes], &keyFileContents[sourceOffset], numOfBytesToCopy);
+		//move a pointer along to count where we are in output
+		usedOutputBytes += numOfBytesToCopy;
+
+		//free up the memory used by holding a whole file in memory
+		free(keyFileContents);
 	}
-	char sourcePath[270];
-	//open the desired file at th desired offset
-
-	sprintf(sourcePath, "%s/%u/%u.bin", ptr->dirPath, ptr->currentFile, filenum);
-	FILE *sourceFd = fopen(sourcePath, "rb");
-	if(sourceFd == NULL) perror("Opening src failed");
-	fseek(sourceFd, fileOffset, SEEK_SET);
-
-	//allocate a buffer for the key and read the key
-	unsigned char *key = malloc(sizeof(char) * keySizeInBytes);
-	fread(key, keySizeInBytes, 1, sourceFd);
-
-	fclose(sourceFd);
-
-	FILE *saveFd = fopen(saveLoc, "wb");
-	if(saveFd == NULL) perror("Opening dest failed");	
-	fwrite(key, keySizeInBytes, 1, saveFd);
-
-	fclose(saveFd);
-
-
-	// shred up to where we now are
-	shred(sourcePath, (ptr->byteOffset + keySizeInBytes));
+	lockDownKeys(path, 1);
+	return outputBytes;
 
 }
 
@@ -146,15 +223,6 @@ int main(int argc, char const *argv[]) {
 	char path[267];
 	scanf("%s", path);
 
-	char modeChoice = ' ';
-	puts("is oneTimePad? Y/N");
-	while(! (modeChoice == 'Y' || modeChoice == 'N') ){
-		scanf("%c", &modeChoice);
-	}
-
-	int isOTP = 0;
-	if (modeChoice == 'Y') isOTP = 1;
-
 	//open the ptr
 	struct pointerFile *ptr = readPtrFile(path, "nextAvailible.ptr");
 	if(ptr == NULL) {
@@ -162,8 +230,9 @@ int main(int argc, char const *argv[]) {
 		return -1;
 	}
 
+	int isOTP = 0;
 
-	if(isOTP == 1) {
+	if(isOTP){
 		char fileToCrypt[267];
 		puts("Please enter the path of yourfile to encrypt");
 		scanf("%s", fileToCrypt);
@@ -172,6 +241,7 @@ int main(int argc, char const *argv[]) {
 		uint32_t fileSize = getFileSize(inputFile);
 
 		printf("file to crypt size %u\n", fileSize);
+
 		//encrypt
 		oneTimePad(ptr, inputFile, fileSize, "crypted");
 
@@ -179,21 +249,27 @@ int main(int argc, char const *argv[]) {
 		//decrypt
 		mkPtrCopy(ptr, "decrypt.ptr");
 
-
-		////now we are shredding this is like not useful to test
-
-		// FILE *cipherTextIn = fopen("crypted", "rb");
-		// fileSize = getFileSize(cipherTextIn);
-		// printf("File to decryt size %u\n", fileSize);
-		// oneTimePad(ptr, cipherTextIn, fileSize, "decrypted.txt");
-
 		incrementPtrFile(ptr, fileSize);
+
 	} else {
-		saveSymmetricKey(ptr, 256, "/mnt/randomUSB/key.bin");
-		incrementPtrFile(ptr, 32);
+		puts("How many bytes do you want to read?");
+		uint32_t bytesAmt;
+		scanf("%d", &bytesAmt);
+
+		
+
+		void *resulting = getBytes(path, ptr, bytesAmt);
+
+		
+		char savepath[250];
+		sprintf(savepath, "%s/output.bin", path);
+		FILE *saveFile = fopen(savepath, "wb");
+		fwrite(resulting, 1, bytesAmt, saveFile);
+		fclose(saveFile);
+
+		incrementPtrFile(ptr, bytesAmt);
 
 	}
-	
 
 	
 

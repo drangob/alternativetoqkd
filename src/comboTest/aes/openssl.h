@@ -14,7 +14,8 @@ void errorHandling(char *str);
 void rekey(EVP_CIPHER_CTX *context);
 
 
-EVP_CIPHER_CTX *cfbSetup(unsigned char keyIn[32]);
-int cfbEncrypt(EVP_CIPHER_CTX *context, unsigned char *input, uint32_t inputSize, unsigned char *output);
+int cfbEncrypt(unsigned char keyIn[32], unsigned char *input, uint32_t inputSize, unsigned char *output);
+int cfbDecrypt(unsigned char keyIn[32], unsigned char *input, uint32_t inputSize, unsigned char *output);
+
 
 #endif //_OPENSSH_H_

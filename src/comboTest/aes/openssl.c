@@ -15,24 +15,6 @@ int nextRand(EVP_CIPHER_CTX *context, unsigned char *output){
 	encrypt(context, output);
 }
 
-//256 bit encryption for the key files
-EVP_CIPHER_CTX *cfbSetup(unsigned char keyIn[32]){
-	ERR_load_crypto_strings();
-	OpenSSL_add_all_algorithms();
-	OPENSSL_config(NULL);
-
-	EVP_CIPHER_CTX *context; // = malloc(sizeof(EVP_CIPHER_CTX));
-	if(!(context = EVP_CIPHER_CTX_new())) {
-		errorHandling("Context");
-	}
-
-	if(1 != EVP_CipherInit_ex(context, EVP_aes_256_cfb(), NULL, keyIn, NULL ,1)) {
-		errorHandling("EncryptInit");
-	}
-
-	return context;
-}
-
 
 EVP_CIPHER_CTX *sslSetup(unsigned char keyOut[16], unsigned char keyIn[16]) {
 	//Initialise the library
@@ -103,11 +85,51 @@ int encrypt(EVP_CIPHER_CTX *context, unsigned char *output) {
 	return len;
 }
 
-int cfbEncrypt(EVP_CIPHER_CTX *context, unsigned char *input, uint32_t inputSize, unsigned char *output) {
-	int len;
-	if(1 != EVP_CipherUpdate(context, output, &len, input, inputSize)) {
+int cfbEncrypt(unsigned char keyIn[32], unsigned char *input, uint32_t inputSize, unsigned char *output) {
+	int len = 0;
+	int len2 = 0;
+	ERR_load_crypto_strings();
+	OpenSSL_add_all_algorithms();
+	OPENSSL_config(NULL);
+
+	EVP_CIPHER_CTX *context; // = malloc(sizeof(EVP_CIPHER_CTX));
+	if(!(context = EVP_CIPHER_CTX_new())) {
+		errorHandling("Context");
+	}
+
+	if(1 != EVP_EncryptInit(context, EVP_aes_256_cfb(), keyIn, "dontusethisinput")) {
+		errorHandling("EncryptInit");
+	}
+	if(1 != EVP_EncryptUpdate(context, output, &len, input, inputSize)) {
 		errorHandling("CFB Encrypt");
 	}
+
+	EVP_EncryptFinal(context, output + len , &len2);
+	
+	return 1;
+}
+
+int cfbDecrypt(unsigned char keyIn[32], unsigned char *input, uint32_t inputSize, unsigned char *output) {
+	int len = 0;
+	int len2 = 0;
+	ERR_load_crypto_strings();
+	OpenSSL_add_all_algorithms();
+	OPENSSL_config(NULL);
+
+	EVP_CIPHER_CTX *context; // = malloc(sizeof(EVP_CIPHER_CTX));
+	if(!(context = EVP_CIPHER_CTX_new())) {
+		errorHandling("Context");
+	}
+
+	if(1 != EVP_DecryptInit(context, EVP_aes_256_cfb(), keyIn, "dontusethisinput")) {
+		errorHandling("EncryptInit");
+	}
+	if(1 != EVP_DecryptUpdate(context, output, &len, input, inputSize)) {
+		errorHandling("CFB Encrypt");
+	}
+
+	EVP_DecryptFinal(context, output + len , &len2);
+	
 	return 1;
 }
 

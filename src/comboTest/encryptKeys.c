@@ -139,7 +139,7 @@ EVP_CIPHER_CTX *encryptKeyStreamSetup(char *keyFilePath) {
 		exit(-1);
 	}
 
-	if(fwrite(keyStreamInitKey, 16, 1, fd) < 16) {
+	if(fwrite(keyStreamInitKey, 16, 1, fd) != 1) {
 		perror("Writing encryption key failed");
 		exit(-1);
 	}
@@ -148,7 +148,7 @@ EVP_CIPHER_CTX *encryptKeyStreamSetup(char *keyFilePath) {
 	return context;
 }
 
-int lockDownKeys(char *keyFilePath) {
+int lockDownKeys(char *keyFilePath, int isEncrypt) {
 
 
 	char inputFile[250] = "";
@@ -163,8 +163,12 @@ int lockDownKeys(char *keyFilePath) {
 	char *newFileContents = malloc(fileSize);
 	fread(fileContents, fileSize, 1, fd);
 	rewind(fd);
-
-	puts("Please enter a password to lock down the keys.");
+	if (isEncrypt) {
+		puts("Please enter a password to lock down the keys.");
+	} else {
+		puts("Please enter a password to unlock the keys.");
+	}
+	
 	char password[50];
 	scanf("%s", password);
 	int passwordlength = strlen(password);
@@ -190,12 +194,48 @@ int lockDownKeys(char *keyFilePath) {
 	char cfbKey[32];
 	libscrypt_scrypt(password, passwordlength, salt, saltlength, SCRYPT_N, SCRYPT_r, SCRYPT_p, cfbKey, 32);
 
-	EVP_CIPHER_CTX *cfbContext = cfbSetup(cfbKey);
-	cfbEncrypt(cfbContext, fileContents, fileSize, newFileContents);
-
+	if (isEncrypt) {
+		cfbEncrypt(cfbKey, fileContents, fileSize, newFileContents);
+	} else {
+		cfbDecrypt(cfbKey, fileContents, fileSize, newFileContents);
+	}
+	
 	fwrite(newFileContents, fileSize, 1, fd);
 	fclose(fd);
 
+}
+
+
+int cryptFileBuffer(char *fileContents, uint32_t contentsSize, int fileNumber, char *path) {
+	
+	char keyFilePath[250] = "";
+	sprintf(keyFilePath, "%s/keys", path);
+	//open up the file of decryption keys
+	FILE *fd = fopen(keyFilePath, "rb");
+	if(fd == NULL) {
+		perror("Opening key file failed.");
+	}
+	//seek to the correct key for decryption of the file buffer
+	fseek(fd, fileNumber * 16, SEEK_SET);
+	//read they key
+	unsigned char key[16];
+	fread(key, 16, 1, fd);
+	fclose(fd);
+
+	EVP_CIPHER_CTX *context = sslSetup(NULL, key);	
+	char ctrKey[16];
+	//loop through the size of the file contents by 16 bytes each time
+	for(int i = 0; i < contentsSize; i+=16) {
+		//get the keystream 16 bytes
+		encrypt(context, ctrKey);
+		//do byte by byte xor 
+		for(int j = 0; j < 16; j++) {
+			//change each byte of the file contents 1 by 1
+			fileContents[i+j] = fileContents[i+j] ^ ctrKey[j];
+			//when we reach the end of the file break out of the loops
+			if(i + j > contentsSize) break;
+		}
+	}
 }
 
 // int main(int argc, char *argv[]) {

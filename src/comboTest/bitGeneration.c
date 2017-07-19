@@ -67,7 +67,7 @@ int writeFile(char *outputFile, uint32_t fileSize, EVP_CIPHER_CTX *keystreamCont
 			output[i*7] = output[i*7] ^ cipher[i*7];
 		}
 
-		if(fwrite(output, sizeof(unsigned char) * 16, 1, fd) <16 ) {
+		if(fwrite(output, sizeof(unsigned char) * 16, 1, fd) != 1 ) {
 			perror("Writing data failed.");
 			exit(-1);
 		}
@@ -168,7 +168,7 @@ int main(int argc, char const *argv[]) {
 	// if(mode == '0') {
 		fileSize = LARGEBYTES;
 		oneTimePadMode(path, chunksNo, fileSize);
-		lockDownKeys(path);
+		lockDownKeys(path, 1);
 		//symmetric
 		////lockDownKeys(path);
 		

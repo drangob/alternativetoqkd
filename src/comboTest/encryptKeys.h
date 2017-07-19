@@ -9,6 +9,8 @@ int decryptKeyFiles(char *path);
 
 EVP_CIPHER_CTX *encryptKeyStreamSetup(char *keyFilePath);
 
-int lockDownKeys(char *keyFilePath);
+int lockDownKeys(char *keyFilePath, int isEncrypt);
+
+int cryptFileBuffer(char *fileContents, uint32_t contentsSize, int fileNumber, char *path);
 
 #endif //_ENCRYPTKEYS_H_

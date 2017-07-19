@@ -11,14 +11,12 @@ link_directories(scrypt)
 include_directories(Quantis)
 link_directories(Quantis)
 
+find_package(OpenSSL)
+
 set (CMAKE_C_FLAGS "-mrdrnd")
 
-add_executable(RandomCombination bitGeneration.c pointerFile.c encryptKeys.c)
-target_link_libraries(RandomCombination opensslAES)
-find_package(OpenSSL)
-target_link_libraries(RandomCombination ${OPENSSL_LIBRARIES})
-target_link_libraries(RandomCombination scrypt)
-target_link_libraries(RandomCombination Quantis)
+add_executable(RandomGeneration bitGeneration.c pointerFile.c encryptKeys.c)
+target_link_libraries(RandomGeneration opensslAES ${OPENSSL_LIBRARIES} scrypt Quantis)
 
-add_executable(PtrIncrementer ptrIncrementer.c pointerFile.c)
-
+add_executable(RandomConsumption ptrIncrementer.c pointerFile.c encryptKeys.c)
+target_link_libraries(RandomConsumption opensslAES ${OPENSSL_LIBRARIES} scrypt Quantis)

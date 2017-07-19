@@ -39,9 +39,9 @@ int savePtr(struct pointerFile *ptr) {
 	}
 
 	//fill in all the data 
-	if( fwrite(&ptr->currentFile, sizeof(ptr->currentFile), 1, fd) < sizeof(ptr->currentFile) ||
-	    fwrite(&ptr->byteOffset, sizeof(ptr->byteOffset), 1, fd) < sizeof(ptr->byteOffset) ||
-	    fwrite(&ptr->mode, sizeof(ptr->mode), 1, fd) < sizeof(ptr->mode)) {
+	if( fwrite(&ptr->currentFile, sizeof(ptr->currentFile), 1, fd) != 1 ||
+	    fwrite(&ptr->byteOffset, sizeof(ptr->byteOffset), 1, fd) != 1 ||
+	    fwrite(&ptr->mode, sizeof(ptr->mode), 1, fd) != 1) {
 
 		puts("Could not write ptr");
 		return -1;
