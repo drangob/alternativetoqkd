@@ -132,6 +132,7 @@ EVP_CIPHER_CTX *encryptKeyStreamSetup(char *keyFilePath) {
 	//open the file to save the keys
 	char outputFile[250] = "";
 	sprintf(outputFile, "%s/keys", keyFilePath);
+	
 	FILE *fd = fopen(outputFile, "a");
 
 	if(fd == NULL) {
@@ -206,6 +207,14 @@ int lockDownKeys(char *keyFilePath, int isEncrypt) {
 }
 
 
+int lockKeys(char *keyFilePath) {
+	lockDownKeys(keyFilePath, 1);
+}
+
+int unlockKeys(char *keyFilePath) {
+	lockDownKeys(keyFilePath, 0);
+}
+
 int cryptFileBuffer(char *fileContents, uint32_t contentsSize, int fileNumber, char *path) {
 	
 	char keyFilePath[250] = "";
@@ -237,21 +246,3 @@ int cryptFileBuffer(char *fileContents, uint32_t contentsSize, int fileNumber, c
 		}
 	}
 }
-
-// int main(int argc, char *argv[]) {
-// 	int isDecrypt = -1;
-// 	puts("encrypt(0) of decrypt(1)?");
-// 	while (!(isDecrypt==0 || isDecrypt==1)){
-// 		scanf("%d", &isDecrypt);
-// 	}
-	
-// 	puts("What is the path of your randoms?");
-// 	char path[250];
-// 	scanf("%s", path);
-
-// 	if(isDecrypt){
-// 		decryptKeyFiles(path);
-// 	} else {
-// 		encryptKeyFiles(path);
-// 	}
-// }

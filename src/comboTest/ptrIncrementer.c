@@ -175,7 +175,7 @@ char *getBytes(char *path, struct pointerFile *ptr, uint32_t numOfBytes) {
 	int leftoverOffset = numOfBytes % keyFileSize;
 
 	//we are about to start reading files - we need access to the keys to decrypt them
-	lockDownKeys(path, 0);
+	unlockKeys(path);
 
 	//we need a big buffer to put the bytes into when read
 	char *outputBytes = malloc(numOfBytes);
@@ -222,7 +222,7 @@ char *getBytes(char *path, struct pointerFile *ptr, uint32_t numOfBytes) {
 		//shred to zero on the bits we just used
 		shred(curFileName, sourceOffset + numOfBytesToCopy);
 	}
-	lockDownKeys(path, 1);
+	lockKeys(path);
 	return outputBytes;
 
 }

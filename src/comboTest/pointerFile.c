@@ -9,7 +9,6 @@
 
 //create a new pointer file
 struct pointerFile *createPtrFile(char *dir, unsigned char mode) {
-
 	//copy the data into the ptr
 	struct pointerFile *ptr = malloc(sizeof(struct pointerFile));
 	strcpy(ptr->dirPath, dir);
@@ -34,6 +33,7 @@ int savePtr(struct pointerFile *ptr) {
 
 	//check for write error
 	if(fd == NULL){
+		printf("%s\n", ptrSavePath);
 		perror("Opening pointerFile for saving failed");
 		return -1;
 	}

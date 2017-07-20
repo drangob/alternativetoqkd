@@ -20,10 +20,30 @@
 
 uint32_t getFileSize(FILE *fd) {
 	fseek(fd, 0L, SEEK_END);
-	return ftell(fd);
+	uint32_t size = ftell(fd);
+	rewind(fd);
+	return size;
 }
 
-int writeFile(char *outputFile, uint32_t fileSize, EVP_CIPHER_CTX *keystreamContext, EVP_CIPHER_CTX *cipherContext) {
+int copyFile(char *destPath, char *srcPath) {
+    FILE *fdDest, *fdSrc;
+    int byte;
+    //if we fail either exit
+    if ((fdDest = fopen(destPath, "w")) && (fdSrc = fopen(srcPath, "r"))) {
+    	//while we can read bytes, put them in the dest
+        while ((byte = getc(fdSrc)) != EOF) putc(byte, fdDest);
+        fclose(fdDest);
+        fclose(fdSrc);
+
+        return 0;
+    }
+    perror("File copy failed");
+    printf("dest: %s\n", destPath);
+    printf("src: %s\n", srcPath);
+    return -1;
+}
+
+int writeFile(char *outputFile, uint32_t fileSize, EVP_CIPHER_CTX *keystreamContext, EVP_CIPHER_CTX *cipherContext, char *secondOutputFile) {
 
 	struct timeval tv1, tv2;
 	gettimeofday(&tv1, NULL);
@@ -35,6 +55,16 @@ int writeFile(char *outputFile, uint32_t fileSize, EVP_CIPHER_CTX *keystreamCont
 		exit(-1);
 	}
 
+
+	//if a second file specified
+	FILE *fd2;
+	if (secondOutputFile[0] != '\0') {
+		fd2 = fopen(secondOutputFile, "wb");
+		if (fd2 == NULL) {
+			perror("Opening second file failed");
+			return -1;
+		}
+	}
 	//128 bit output for aes
 	unsigned char output[16];
 
@@ -71,6 +101,12 @@ int writeFile(char *outputFile, uint32_t fileSize, EVP_CIPHER_CTX *keystreamCont
 			perror("Writing data failed.");
 			exit(-1);
 		}
+		if(secondOutputFile[0] != '\0') {
+			if(fwrite(output, sizeof(unsigned char) * 16, 1, fd2) != 1 ) {
+				perror("Writing data failed.");
+				exit(-1);
+			}
+		}
 	}
 
 
@@ -90,6 +126,7 @@ int writeFile(char *outputFile, uint32_t fileSize, EVP_CIPHER_CTX *keystreamCont
 	gettimeofday(&tv3, NULL);
 
 	fclose(fd);
+	if (secondOutputFile[0] != '\0') fclose(fd2);
 
 	gettimeofday(&tv4, NULL);
 	struct timeval tvdiff2 = { tv4.tv_sec - tv3.tv_sec, tv4.tv_usec - tv3.tv_usec };
@@ -99,48 +136,44 @@ int writeFile(char *outputFile, uint32_t fileSize, EVP_CIPHER_CTX *keystreamCont
 	return 0;
 }
 
-int oneTimePadMode(char *path, uint32_t chunksNo, uint32_t fileSize) {
+int generateChunks(char *path, uint32_t chunksNo, uint32_t fileSize, char *secondaryPath) {
 	createPtrFile(path, '0');
+	//if we want simultaneous writing
+	if(secondaryPath[0]!='\0') createPtrFile(secondaryPath, 0);
 
 	//write different files to consecutive file names
-	char filename[265];
+	char filename[150];
+	char filename2[150];
 	for (uint32_t i = 0; i < chunksNo; i++) {
-		//create a new context each file to effectively swap out the key each time
+		//create a new context for each file to effectively rekey per file
 		EVP_CIPHER_CTX *context = sslSetup(NULL, NULL);
-		
+		//saves the key into the path
 		EVP_CIPHER_CTX *cipherContext = encryptKeyStreamSetup(path);
 
 		//edit the file name on each loop
 		sprintf(filename, "%s/%u.bin", path, i);
-
-		writeFile(filename, fileSize, context, cipherContext);
+		if (secondaryPath[0] != '\0') {
+			sprintf(filename2, "%s/%u.bin", secondaryPath, i);
+		} else {
+			filename2[0] = '\0';
+		}
+		writeFile(filename, fileSize, context, cipherContext, filename2);
 		sslClose(context);
 		sslClose(cipherContext);
 	}
+	//lock the keys only in one dir. Copy the resulting salt and keys
+	lockKeys(path);	
+	if (secondaryPath[0] != '\0') {
+		char src[100], dest[100];
+		sprintf(src, "%s/keys", path);
+		sprintf(dest, "%s/keys", secondaryPath);
+		copyFile(dest, src);
+		sprintf(src, "%s/salt", path);
+		sprintf(dest, "%s/salt", secondaryPath);
+		copyFile(dest, src);
+	}
+
 }
-
-
-// int symmetricMode(char *path, uint32_t chunksNo, uint32_t fileSize) {
-// 	createPtrFile(path, '1');
-
-// 	char foldername[265];
-// 	//make the required number of folders
-// 	for (int i = 0; i < chunksNo; ++i) {
-// 		//create a new context for each folder, causing the keys to be rotated at that point
-// 		EVP_CIPHER_CTX *context = sslSetup(NULL, NULL);
-
-// 		sprintf(foldername, "%s/%u", path, i);
-// 		mkdir(foldername, 0700);
-// 		//write different files to consecutive file names
-// 		char filename[265];
-// 		for (uint32_t i = 0; i < 6104; i++) {
-// 			//edit the file name on each loop
-// 			sprintf(filename, "%s/%u.bin", foldername, i);
-// 			writeFile(filename, fileSize, context);
-// 		}
-// 		sslClose(context);
-// 	}
-// }
 
 int main(int argc, char const *argv[]) {
 	uint32_t fileSize;
@@ -152,9 +185,23 @@ int main(int argc, char const *argv[]) {
 	// 	mode = getchar();
 	// }
 	//get path
-	char path[250];
-	printf("Please enter the full path of the directory for storage.\n ENSURE THAT THIS IS EXT4 AND JOURNALLING IS DISABLED.\n");
+	char path[150];
+	printf("Please enter the full path of the directory for storage.\nENSURE THAT THIS IS EXT4 AND JOURNALLING IS DISABLED.\n");
 	scanf("%s", path);
+
+	printf("Would you like to do simultaneous writing to two disks? y/n\n");
+	char choice = ' ';
+	while(!(choice == 'y' | choice == 'n')) {
+		scanf(" %c", &choice);	
+	}
+	char secondaryPath[150];
+	if (choice == 'y') {
+		printf("Please enter the path of the secondary directory.\n");
+		scanf("%s", secondaryPath);	
+	} else {
+		secondaryPath[0] = '\0';
+	}
+	
 	//get amount of data to generate
 	uint32_t chunksNo = 0;
 	printf("Please enter how many ~100mb chunks of data you desire\n");
@@ -166,17 +213,8 @@ int main(int argc, char const *argv[]) {
 
 
 	// if(mode == '0') {
-		fileSize = LARGEBYTES;
-		oneTimePadMode(path, chunksNo, fileSize);
-		lockDownKeys(path, 1);
-		//symmetric
-		////lockDownKeys(path);
-		
-
-	// } else {
-	// 	fileSize = SMALLBYTES;
-	// 	symmetricMode(path, chunksNo, fileSize);
-	// }
+	fileSize = LARGEBYTES;
+	generateChunks(path, chunksNo, fileSize, secondaryPath);
 	
 
 	return 0;

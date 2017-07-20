@@ -6,11 +6,9 @@
 
 uint32_t getFileSize(FILE *fd);
 
-int writeFile(char *outputFile, uint32_t fileSize, EVP_CIPHER_CTX *context, EVP_CIPHER_CTX *cipherContext);
+//int writeFile(char *outputFile, uint32_t fileSize, EVP_CIPHER_CTX *context, EVP_CIPHER_CTX *cipherContext);
 
-int oneTimePadMode(char *path, uint32_t chunksNo, uint32_t fileSize);
-
-int symmetricMode(char *path, uint32_t chunksNo, uint32_t fileSize);
+int generateChunks(char *path, uint32_t chunksNo, uint32_t fileSize, char *secondaryPath);
 
 int main(int argc, char const *argv[]);
 
