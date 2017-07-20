@@ -18,4 +18,6 @@ int cfbEncrypt(unsigned char keyIn[32], unsigned char *input, uint32_t inputSize
 int cfbDecrypt(unsigned char keyIn[32], unsigned char *input, uint32_t inputSize, unsigned char *output);
 
 
+int AEAD_AES_128_CBC_HMAC_SHA_256_ENCRYPT(unsigned char key[32], unsigned char *input, uint32_t inputSize, unsigned char *output, int *outputLen);
+
 #endif //_OPENSSH_H_
