@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 2.8)
 project(opensslAES)
 set(CMAKE_COMPILER gcc)
 
+set (CMAKE_C_FLAGS "-mrdrnd -g")
+
 add_library(opensslAES openssl.c)
 
 find_package(OpenSSL)

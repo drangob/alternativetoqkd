@@ -9,6 +9,7 @@ int main(int argc, char const *argv[]) {
 	int outputLen;
 	unsigned char output[500];
 	AEAD_AES_128_CBC_HMAC_SHA_256_ENCRYPT(key, wow, len, output, &outputLen);
+	printf("%d\n", outputLen);
 
 	fwrite(output, outputLen, 1, stdout);
 	puts("");

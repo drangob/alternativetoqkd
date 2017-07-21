@@ -125,6 +125,12 @@ int cfbEncrypt(unsigned char keyIn[32], unsigned char *input, uint32_t inputSize
 
 	EVP_EncryptFinal(context, output + len , &len2);
 	
+	EVP_cleanup();
+	ERR_free_strings();
+
+	// Clean up 
+	EVP_CIPHER_CTX_free(context);
+
 	return 1;
 }
 
@@ -149,10 +155,16 @@ int cfbDecrypt(unsigned char keyIn[32], unsigned char *input, uint32_t inputSize
 
 	EVP_DecryptFinal(context, output + len , &len2);
 	
+	EVP_cleanup();
+	ERR_free_strings();
+
+	// Clean up 
+	EVP_CIPHER_CTX_free(context);
+
 	return 1;
 }
 
-unsigned char *padding(unsigned char *input, uint32_t inputSize) {
+int padding(unsigned char *input, uint32_t inputSize, unsigned char *output, uint32_t* outputSize) {
 	//if it is not a multiple of 16 we must pad
 	unsigned char PS[16];
 	int remainder = inputSize % 16;
@@ -174,28 +186,19 @@ unsigned char *padding(unsigned char *input, uint32_t inputSize) {
 	if(remainder== 1){memcpy(PS,"\x0F\x0F\x0F\x0F\x0F\x0F\x0F\x0F\x0F\x0F\x0F\x0F\x0F\x0F\x0F",15);} else
     if(remainder== 0){memcpy(PS,"\x10\x10\x10\x10\x10\x10\x10\x10\x10\x10\x10\x10\x10\x10\x10\x10",16);}
 
-    //allocate the input with space for padding
-    char *P = malloc(inputSize + remainder);
+    //
+    *outputSize = (inputSize + (16 -remainder));
     //copy the data into a new buffer and pad it
-    memcpy(P, input, inputSize);
-    memcpy(&P[inputSize], PS,  16 - remainder);
+    memcpy(output, input, inputSize);
+    memcpy(&output[inputSize], PS,  16 - remainder);
 	
-    //free up the old one 
- 
-    return P;
+    return 0;
 }
 
-unsigned char* hmac_sha256(const void *key, int keylen,
-                           const unsigned char *data, int datalen,
-                           unsigned char *result, unsigned int* resultlen) 
-{
-    return HMAC(EVP_sha256(), key, keylen, data, datalen, result, resultlen);
-}
-
-int AEAD_AES_128_CBC_HMAC_SHA_256_ENCRYPT(unsigned char key[32], unsigned char *input, uint32_t inputSize, unsigned char *output, int *outputLen) {
-
-	unsigned char encKey[16];
-	memcpy(encKey, key+16, 16);
+int cbc128Encrypt(unsigned char encKey[16], unsigned char *input, size_t inputSize, unsigned char *output, int* outputLen){
+	ERR_load_crypto_strings();
+	OpenSSL_add_all_algorithms();
+	OPENSSL_config(NULL);
 	//make context
 	EVP_CIPHER_CTX *cbcCtx;
 	if(!(cbcCtx = EVP_CIPHER_CTX_new())) {
@@ -205,40 +208,76 @@ int AEAD_AES_128_CBC_HMAC_SHA_256_ENCRYPT(unsigned char key[32], unsigned char *
 	if(1 != EVP_EncryptInit(cbcCtx, EVP_aes_128_cbc(), encKey, "dontusethisinput")) {
 		errorHandling("EncryptInit");
 	}
-
-	//encrypt and place output
-	char *paddedInput = padding(input, inputSize);
+	//Do padding to the input
 	int paddedSize = (16 - (inputSize % 16)) + inputSize;
-	
-	int sLen;
-	unsigned char *s = malloc(inputSize);
-	if(1 != EVP_EncryptUpdate(cbcCtx, s, &sLen, paddedInput, paddedSize)) {
+	unsigned char *paddedInput = malloc(paddedSize);
+	int padOutputSize = 0;
+	padding(input, inputSize, paddedInput, &padOutputSize);
+
+	if (paddedSize != padOutputSize) {
+		printf("paddedSize%d\n",paddedSize);
+		printf("padOutputSize%d\n", padOutputSize);
+		errorHandling("padding went wrong");
+	}
+
+	//do the encryption
+	if(1 != EVP_EncryptUpdate(cbcCtx, output, outputLen, paddedInput, paddedSize)) {
 		errorHandling("CFB Encrypt");
 	}
 	int len2;
-	EVP_EncryptFinal(cbcCtx, s + sLen , &len2);
+	EVP_EncryptFinal(cbcCtx, output + *outputLen , &len2);
 
+	//cleanup
 	EVP_CIPHER_CTX_free(cbcCtx);
+	free(paddedInput);
 	
+	EVP_cleanup();
+  	return 0;
+}
 
+unsigned char* hmac_sha256(const void *key, int keylen, const unsigned char *data, size_t datalen,
+                           unsigned char *result, unsigned int* resultlen) {
+    return HMAC(EVP_sha256(), key, keylen, data, datalen, result, resultlen);
+}
+
+
+
+int AEAD_AES_128_CBC_HMAC_SHA_256_ENCRYPT(unsigned char key[32], unsigned char *input, uint32_t inputSize, unsigned char *output, int *outputLen) {
+	//copy the cbc key into the correct spot
+	unsigned char encKey[16];
+	memcpy(encKey, key+16, 16);
+
+	unsigned char *cbcOutput = malloc((16 - (inputSize % 16)) + inputSize);
+	int cbcLen = 0;
+	//do cbc
+	cbc128Encrypt(encKey, input, inputSize, cbcOutput, &cbcLen);
+
+	//get the hmac key
 	unsigned char hmacKey[16];
 	memcpy(hmacKey, key, 16);
 
+	//create associated data possibly this will be nextavailible?
 	char *A = "associatedData";
 	//associated data size in bits
 	uint64_t AL = htonll(strlen(A)*8);
 
-	int hmacInputSize = strlen(A) + sLen + sizeof(uint64_t);
+	//build up the hmac string
+	int hmacInputSize = strlen(A) + cbcLen + sizeof(uint64_t);
 	unsigned char *hmacInput = malloc(hmacInputSize);
 	
 	memcpy(hmacInput, A, strlen(A));
-	memcpy(&hmacInput[strlen(A)], s, sLen);
-	memcpy(&hmacInput[strlen(A)+sLen], &AL, sizeof(uint64_t));
+	memcpy(&hmacInput[strlen(A)], cbcOutput, cbcLen);
+	memcpy(&hmacInput[strlen(A)+cbcLen], &AL, sizeof(uint64_t));
 
-	hmac_sha256(hmacKey, 16, hmacInput, hmacInputSize, output, outputLen);
+	unsigned char hmacOutput[32];
+	int hmacOutLen = 0;
 
-	//printf("Output len %i\n", hmacOutputLen);
-	//printf("Output %s\n", hmacOutput);
+	hmac_sha256(hmacKey, 16, hmacInput, hmacInputSize, hmacOutput, &hmacOutLen);
+
+	//finalise the output string
+	memcpy(output, cbcOutput, cbcLen);
+	memcpy(output+cbcLen, hmacOutput, hmacOutLen);
+	*outputLen = cbcLen + hmacOutLen;
 }
 
 
