@@ -307,7 +307,9 @@ int hmacCompute(unsigned char *key,
 }
 
 
-int AEAD_AES_128_CBC_HMAC_SHA_256_ENCRYPT(unsigned char key[32], unsigned char *input, uint32_t inputSize, unsigned char *output, int *outputLen) {
+int AEAD_AES_128_CBC_HMAC_SHA_256_ENCRYPT(unsigned char key[32], unsigned char *input, uint32_t inputSize,
+										  unsigned char *associatedData, uint32_t associatedDataLength,
+										  unsigned char *output, uint32_t *outputLen) {
 	//copy the cbc key into the correct spot
 	unsigned char encKey[16];
 	memcpy(encKey, key+16, 16);
@@ -321,14 +323,10 @@ int AEAD_AES_128_CBC_HMAC_SHA_256_ENCRYPT(unsigned char key[32], unsigned char *
 	cbc128Encrypt(encKey, hmacKey, input, inputSize, cbcOutput, &cbcLen);
 
 
-
-	//create associated data possibly this will be nextavailible?
-	char associatedData[] = "associatedData";
-
 	unsigned char hmacOutput[32];
 	int hmacOutLen = 0;
 
-	hmacCompute(hmacKey, associatedData, strlen(associatedData), cbcOutput, cbcLen,
+	hmacCompute(hmacKey, associatedData, associatedDataLength, cbcOutput, cbcLen,
 				hmacOutput, &hmacOutLen);
 
 	//finalise the output string
@@ -338,7 +336,9 @@ int AEAD_AES_128_CBC_HMAC_SHA_256_ENCRYPT(unsigned char key[32], unsigned char *
 	return 0;
 }
 
-int AEAD_AES_128_CBC_HMAC_SHA_256_DECRYPT(unsigned char key[32], unsigned char *input, uint32_t inputSize, unsigned char *output, uint32_t* outputLen) {
+int AEAD_AES_128_CBC_HMAC_SHA_256_DECRYPT(unsigned char key[32], unsigned char *input, uint32_t inputSize,
+										  unsigned char *associatedData, uint32_t associatedDataLength,
+										  unsigned char *output, uint32_t* outputLen) {
 	//get the cbc key
 	unsigned char encKey[16];
 	memcpy(encKey, key+16, 16);
@@ -350,11 +350,9 @@ int AEAD_AES_128_CBC_HMAC_SHA_256_DECRYPT(unsigned char key[32], unsigned char *
 	uint32_t cipherTextSize = inputSize - 32;
 
 	//recompute the HMAC and see if it maches for integrity check
-	char associatedData[] = "associatedData";
-
 	unsigned char newHmacOut[32];
 	int newHmacLen = 0;
-	hmacCompute(hmacKey, associatedData, strlen(associatedData), input, cipherTextSize,
+	hmacCompute(hmacKey, associatedData, associatedDataLength, input, cipherTextSize,
 				newHmacOut, &newHmacLen);
 
 	//strip the MAC off of the input string
