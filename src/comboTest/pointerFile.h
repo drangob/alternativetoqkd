@@ -34,4 +34,6 @@ int mkPtrCopy(struct pointerFile *source, char *destName);
 //saving pointers in own method is better for sanity
 int savePtr(struct pointerFile *ptr);
 
+int packPtrFile(struct pointerFile *ptr, unsigned char output[7]);
+
 #endif //_POINTER_FILE_H_

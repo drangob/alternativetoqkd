@@ -137,9 +137,9 @@ int writeFile(char *outputFile, uint32_t fileSize, EVP_CIPHER_CTX *keystreamCont
 }
 
 int generateChunks(char *path, uint32_t chunksNo, uint32_t fileSize, char *secondaryPath) {
-	createPtrFile(path, '0');
+	struct pointerFile *ptr = createPtrFile(path, '0');
 	//if we want simultaneous writing
-	if(secondaryPath[0]!='\0') createPtrFile(secondaryPath, 0);
+	//if(secondaryPath[0]!='\0') createPtrFile(secondaryPath, 0);
 
 	//write different files to consecutive file names
 	char filename[150];
@@ -162,7 +162,8 @@ int generateChunks(char *path, uint32_t chunksNo, uint32_t fileSize, char *secon
 		sslClose(cipherContext);
 	}
 	//lock the keys only in one dir. Copy the resulting salt and keys
-	lockKeys(path);	
+
+	lockKeys(path, ptr);	
 	if (secondaryPath[0] != '\0') {
 		char src[100], dest[100];
 		sprintf(src, "%s/keys", path);
@@ -170,6 +171,9 @@ int generateChunks(char *path, uint32_t chunksNo, uint32_t fileSize, char *secon
 		copyFile(dest, src);
 		sprintf(src, "%s/salt", path);
 		sprintf(dest, "%s/salt", secondaryPath);
+		copyFile(dest, src);
+		sprintf(src, "%s/nextAvailible.ptr", path);
+		sprintf(dest, "%s/nextAvailible.ptr", secondaryPath);
 		copyFile(dest, src);
 	}
 

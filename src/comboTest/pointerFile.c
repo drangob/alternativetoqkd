@@ -91,7 +91,7 @@ struct pointerFile *updatePtrFile(struct pointerFile *ptr) {
 
 	if( fwrite(&ptr->currentFile, sizeof(uint16_t), 1, fd) != 1 ||
 		fwrite(&ptr->byteOffset, sizeof(uint32_t), 1, fd) != 1 ||
-		fwrite(&ptr->byteOffset, sizeof(char), 1, fd) != 1) {
+		fwrite(&ptr->mode, sizeof(char), 1, fd) != 1) {
 
 		puts("Could not write data to pointer.");
 		return NULL;
@@ -141,4 +141,10 @@ int mkPtrCopy(struct pointerFile *source, char *destName) {
 
 	savePtr(dest);
 
+}
+
+int packPtrFile(struct pointerFile *ptr, unsigned char output[7]) {
+	memcpy(output, &ptr->currentFile, 2);
+	memcpy(output+2,&ptr->byteOffset, 4);
+	memcpy(output+6, &ptr->mode, 1);
 }

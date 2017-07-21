@@ -123,43 +123,6 @@ int oneTimePad(struct pointerFile *ptr, FILE *fd, uint32_t fileSize, char *outpu
 	
 }
 
-// void saveSymmetricKey(struct pointerFile *ptr, unsigned int keySize, char *saveLoc) {
-// 	unsigned int keySizeInBytes = keySize / 8;
-// 	//calculate which file we need to look into 
-// 	unsigned int filenum = ptr->byteOffset / SYMMETRIC_SIZE;
-// 	unsigned int fileOffset = ptr->byteOffset % SYMMETRIC_SIZE;
-// 	//if we want to overspill into the next file, just error for now
-// 	if(fileOffset + keySizeInBytes > SYMMETRIC_SIZE) {
-// 		printf("Key too big- dying now\n");
-// 		exit(-1);
-// 	}
-// 	char sourcePath[270];
-// 	//open the desired file at th desired offset
-
-// 	sprintf(sourcePath, "%s/%u/%u.bin", ptr->dirPath, ptr->currentFile, filenum);
-// 	FILE *sourceFd = fopen(sourcePath, "rb");
-// 	if(sourceFd == NULL) perror("Opening src failed");
-// 	fseek(sourceFd, fileOffset, SEEK_SET);
-
-// 	//allocate a buffer for the key and read the key
-// 	unsigned char *key = malloc(sizeof(char) * keySizeInBytes);
-// 	fread(key, keySizeInBytes, 1, sourceFd);
-
-// 	fclose(sourceFd);
-
-// 	FILE *saveFd = fopen(saveLoc, "wb");
-// 	if(saveFd == NULL) perror("Opening dest failed");	
-// 	fwrite(key, keySizeInBytes, 1, saveFd);
-
-// 	fclose(saveFd);
-
-
-// 	// shred up to where we now are
-// 	shred(sourcePath, (ptr->byteOffset + keySizeInBytes));
-
-// }
-
-
 char *getBytes(char *path, struct pointerFile *ptr, uint32_t numOfBytes) {
 	//get the current file out of the ptr file
 	char curFileName[267];
@@ -175,7 +138,7 @@ char *getBytes(char *path, struct pointerFile *ptr, uint32_t numOfBytes) {
 	int leftoverOffset = numOfBytes % keyFileSize;
 
 	//we are about to start reading files - we need access to the keys to decrypt them
-	unlockKeys(path);
+	unlockKeys(path, ptr);
 
 	//we need a big buffer to put the bytes into when read
 	char *outputBytes = malloc(numOfBytes);
@@ -222,7 +185,9 @@ char *getBytes(char *path, struct pointerFile *ptr, uint32_t numOfBytes) {
 		//shred to zero on the bits we just used
 		shred(curFileName, sourceOffset + numOfBytesToCopy);
 	}
-	lockKeys(path);
+	//inrement here so we can integrity protect it
+	incrementPtrFile(ptr, numOfBytes);
+	lockKeys(path, ptr);
 	return outputBytes;
 
 }
@@ -275,8 +240,6 @@ int main(int argc, char const *argv[]) {
 		FILE *saveFile = fopen(savepath, "wb");
 		fwrite(resulting, 1, bytesAmt, saveFile);
 		fclose(saveFile);
-
-		incrementPtrFile(ptr, bytesAmt);
 
 	}
 

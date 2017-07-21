@@ -238,10 +238,10 @@ int cbc128Encrypt(unsigned char encKey[16], unsigned char iv[16], unsigned char 
 	EVP_EncryptFinal(cbcCtx, output + *outputLen , &len2);
 
 	//cleanup
-	EVP_CIPHER_CTX_free(cbcCtx);
-	free(paddedInput);
+	//EVP_CIPHER_CTX_free(cbcCtx);
+	//free(paddedInput);
 	
-	EVP_cleanup();
+	//EVP_cleanup();
   	return 0;
 }
 

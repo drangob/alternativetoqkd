@@ -9,6 +9,7 @@
 #include "openssl.h"
 #include "encryptKeys.h"
 #include "scrypt/libscrypt.h"
+#include "pointerFile.h"
 
 
 unsigned char *crypto(char *path, char inputKey[16]) {
@@ -149,21 +150,19 @@ EVP_CIPHER_CTX *encryptKeyStreamSetup(char *keyFilePath) {
 	return context;
 }
 
-int lockDownKeys(char *keyFilePath, int isEncrypt) {
-
-
+int lockDownKeys(char *keyFilePath, int isEncrypt, struct pointerFile *ptr) {
 	char inputFile[250] = "";
 	sprintf(inputFile, "%s/keys", keyFilePath);
 
-	FILE *fd = fopen(inputFile, "r+");
+	FILE *fd = fopen(inputFile, "r");
 	uint32_t fileSize = getFileSize(fd);
 	rewind(fd);
-
 	//read the entire file into memory
 	char *fileContents = malloc(fileSize);
-	char *newFileContents = malloc(fileSize);
 	fread(fileContents, fileSize, 1, fd);
-	rewind(fd);
+	//close and reopen for writing
+	fclose(fd);
+
 	if (isEncrypt) {
 		puts("Please enter a password to lock down the keys.");
 	} else {
@@ -192,27 +191,41 @@ int lockDownKeys(char *keyFilePath, int isEncrypt) {
 	fclose(saltFd);
 
 	//output of scrypt
-	char cfbKey[32];
-	libscrypt_scrypt(password, passwordlength, salt, saltlength, SCRYPT_N, SCRYPT_r, SCRYPT_p, cfbKey, 32);
+	unsigned char key[32];
+	libscrypt_scrypt(password, passwordlength, salt, saltlength, SCRYPT_N, SCRYPT_r, SCRYPT_p, key, 32);
+
+	//get the additional data for hmac
+	unsigned char ptrData[7];
+	packPtrFile(ptr, ptrData); 
+
+	//setup output
+	char *newFileContents = malloc(fileSize+32);
+	uint32_t newFileSize = 0;
 
 	if (isEncrypt) {
-		cfbEncrypt(cfbKey, fileContents, fileSize, newFileContents);
+		AEAD_AES_128_CBC_HMAC_SHA_256_ENCRYPT(key, fileContents, fileSize,
+										  ptrData, 7,
+										  newFileContents, &newFileSize);
 	} else {
-		cfbDecrypt(cfbKey, fileContents, fileSize, newFileContents);
+		AEAD_AES_128_CBC_HMAC_SHA_256_DECRYPT(key, fileContents, fileSize,
+										  ptrData, 7,
+										  newFileContents, &newFileSize);
 	}
 	
-	fwrite(newFileContents, fileSize, 1, fd);
-	fclose(fd);
+	FILE *writingFd = fopen(inputFile, "wb");
+	fwrite(newFileContents, newFileSize, 1, writingFd);
+	fclose(writingFd);
 
+	//free(newFileContents);
 }
 
 
-int lockKeys(char *keyFilePath) {
-	lockDownKeys(keyFilePath, 1);
+int lockKeys(char *keyFilePath, struct pointerFile *ptr) {
+	lockDownKeys(keyFilePath, 1, ptr);
 }
 
-int unlockKeys(char *keyFilePath) {
-	lockDownKeys(keyFilePath, 0);
+int unlockKeys(char *keyFilePath, struct pointerFile *ptr) {
+	lockDownKeys(keyFilePath, 0, ptr);
 }
 
 int cryptFileBuffer(char *fileContents, uint32_t contentsSize, int fileNumber, char *path) {
