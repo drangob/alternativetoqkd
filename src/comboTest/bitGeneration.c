@@ -88,7 +88,7 @@ int writeFile(char *outputFile, uint32_t fileSize, EVP_CIPHER_CTX *keystreamCont
 
 		//get random twice - because the aes output is 128 bits
 		for (int i = 0; i < 2; i++) {
-			//_rdrand64_step(&longRand);
+			_rdrand64_step(&longRand);
 			//xor it
 			output[i*7] = output[i*7] ^ longRand;
 

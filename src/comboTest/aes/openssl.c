@@ -140,7 +140,7 @@ int aes_gcm_encrypt(unsigned char *plaintext, int plaintext_len, unsigned char *
 	if(!(ctx = EVP_CIPHER_CTX_new())) errorHandling("Aes gcm Encrypt - context");
 
 	// Initialise cipher
-	if(1 != EVP_EncryptInit_ex(ctx, EVP_aes_256_gcm(), NULL, NULL, NULL)){
+	if(1 != EVP_EncryptInit_ex(ctx, EVP_aes_128_gcm(), NULL, NULL, NULL)){
 		errorHandling("Aes gcm encrypt - init");
 	}
 
@@ -177,7 +177,73 @@ int aes_gcm_encrypt(unsigned char *plaintext, int plaintext_len, unsigned char *
 	}
 
 	/* Clean up */
-	EVP_CIPHER_CTX_cleanup(ctx);
+	cleanupContext(ctx);
 
 	return ciphertext_len;
+}
+
+int aes_gcm_decrypt(unsigned char *ciphertext, int ciphertext_len, unsigned char *associatedData,
+	int associatedDataLength, unsigned char *mac, unsigned char *key, unsigned char *nonce,
+	unsigned char *plaintext) {
+
+	EVP_CIPHER_CTX *ctx;
+	int len;
+	int plaintext_len;
+	int ret;
+
+	if(!(ctx = EVP_CIPHER_CTX_new())) {
+		errorHandling("aes_gcm_decrypt - context");
+	}
+
+	/* Initialise the decryption operation. */
+	if(!EVP_DecryptInit_ex(ctx, EVP_aes_128_gcm(), NULL, NULL, NULL)) {
+		errorHandling("aes_gcm_decrypt - init cipher");
+	}
+
+	/* Set IV length. Not necessary if this is 12 bytes (96 bits) */
+	if(!EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_IVLEN, 16, NULL)) {
+		errorHandling("aes_gcm_decrypt - ctrl cipher");
+	}
+
+	/* Initialise key and IV */
+	if(!EVP_DecryptInit_ex(ctx, NULL, NULL, key, nonce)) {
+		errorHandling("aes_gcm_decrypt - init nonce & key");
+	}
+
+	//do associated data
+	if(!EVP_DecryptUpdate(ctx, NULL, &len, associatedData, associatedDataLength)) {
+		errorHandling("aes_gcm_decrypt - associatedData");
+	}
+
+	/* Provide the message to be decrypted, and obtain the plaintext output.
+	 * EVP_DecryptUpdate can be called multiple times if necessary
+	 */
+	if(!EVP_DecryptUpdate(ctx, plaintext, &len, ciphertext, ciphertext_len)) {
+		errorHandling("aes_gcm_decrypt - doing decryption");
+	}
+
+	plaintext_len = len;
+
+	/* Set expected mac value. Works in OpenSSL 1.0.1d and later */
+	if(!EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_TAG, 16, mac)) {
+		errorHandling("aes_gcm_decrypt - set mac");
+	}
+
+	//do encryption - positive return means it passed verification
+	ret = EVP_DecryptFinal_ex(ctx, plaintext + len, &len);
+
+	/* Clean up */
+	cleanupContext(ctx);
+
+	if(ret > 0)
+	{
+		/* Success */
+		plaintext_len += len;
+		return plaintext_len;
+	}
+	else
+	{
+		/* Verify failed */
+		return -1;
+	}
 }

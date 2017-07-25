@@ -13,17 +13,12 @@ void errorHandling(char *str);
 
 void rekeyCTR(EVP_CIPHER_CTX *context);
 
+int aes_gcm_encrypt(unsigned char *plaintext, int plaintext_len, unsigned char *associatedData,
+	int associatedDataLength, unsigned char *key, unsigned char *nonce,
+	unsigned char *ciphertext, unsigned char *mac);
 
-int cfbEncrypt(unsigned char keyIn[32], unsigned char *input, uint32_t inputSize, unsigned char *output);
-int cfbDecrypt(unsigned char keyIn[32], unsigned char *input, uint32_t inputSize, unsigned char *output);
-
-
-int AEAD_AES_128_CBC_HMAC_SHA_256_ENCRYPT(unsigned char key[32], unsigned char *input, uint32_t inputSize,
-										  unsigned char *associatedData, uint32_t associatedDataLength,
-										  unsigned char *output, uint32_t *outputLen);
-
-int AEAD_AES_128_CBC_HMAC_SHA_256_DECRYPT(unsigned char key[32], unsigned char *input, uint32_t inputSize,
-										  unsigned char *associatedData, uint32_t associatedDataLength,
-										  unsigned char *output, uint32_t* outputLen);
+int aes_gcm_decrypt(unsigned char *ciphertext, int ciphertext_len, unsigned char *associatedData,
+	int associatedDataLength, unsigned char *mac, unsigned char *key, unsigned char *nonce,
+	unsigned char *plaintext);
 
 #endif //_OPENSSH_H_
