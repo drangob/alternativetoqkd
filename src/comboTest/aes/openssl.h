@@ -4,6 +4,8 @@
 #include <stdint.h>
 #include <openssl/evp.h>
 
+int getKey(unsigned char *output, int outputLength);
+
 int nextRand(EVP_CIPHER_CTX *context, unsigned char *output);
 
 int encrypt(EVP_CIPHER_CTX *context, unsigned char *output);

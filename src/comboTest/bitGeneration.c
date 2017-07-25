@@ -136,7 +136,9 @@ int writeFile(char *outputFile, uint32_t fileSize, EVP_CIPHER_CTX *keystreamCont
 }
 
 int generateChunks(char *path, uint32_t chunksNo, uint32_t fileSize, char *secondaryPath) {
+	//creates a pointer file
 	struct pointerFile *ptr = createPtrFile(path);
+	verifyPtrFile(ptr);
 
 	//write different files to consecutive file names
 	char filename[150];
@@ -158,9 +160,7 @@ int generateChunks(char *path, uint32_t chunksNo, uint32_t fileSize, char *secon
 
 		cleanupContext(context);
 		cleanupContext(cipherContext);
-
 	}
-	//lock the keys only in one dir. Copy the resulting salt and keys
 
 	//lockKeys(path, ptr);	
 	if (secondaryPath[0] != '\0') {
@@ -180,14 +180,7 @@ int generateChunks(char *path, uint32_t chunksNo, uint32_t fileSize, char *secon
 
 int main(int argc, char const *argv[]) {
 	uint32_t fileSize;
-	//changing the mode changes the file size and the layout of the files
-	// printf("Please choose a mode of operation:\n-One time pad mode  (0) \n-Symmetric key mode (1)\n");
-	// char mode = ' ';
-	// //loop until we get a mode
-	// while(!(mode == '0' || mode == '1')) {
-	// 	mode = getchar();
-	// }
-	//get path
+
 	char path[150];
 	printf("Please enter the full path of the directory for storage.\nENSURE THAT THIS IS EXT4 AND JOURNALLING IS DISABLED.\n");
 	scanf("%s", path);
@@ -215,7 +208,6 @@ int main(int argc, char const *argv[]) {
 	}
 
 
-	// if(mode == '0') {
 	fileSize = LARGEBYTES;
 	generateChunks(path, chunksNo, fileSize, secondaryPath);
 	

@@ -11,6 +11,8 @@ struct pointerFile {
 	uint32_t currentFile;
 	//current offset into that file
 	uint64_t byteOffset;
+	//the salt of the password unlock operation
+	unsigned char salt[16];
 };
 
 //create a new pointer file
@@ -31,6 +33,8 @@ int mkPtrCopy(struct pointerFile *source, char *destName);
 //saving pointers in own method is better for sanity
 int savePtr(struct pointerFile *ptr);
 
-int packPtrFile(struct pointerFile *ptr, unsigned char output[7]);
+int packPtrFile(struct pointerFile *ptr, unsigned char output[12]);
+
+int verifyPtrFile(struct pointerFile *ptr);
 
 #endif //_POINTER_FILE_H_

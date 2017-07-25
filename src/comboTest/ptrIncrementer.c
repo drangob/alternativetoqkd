@@ -174,7 +174,7 @@ char *getBytes(char *path, struct pointerFile *ptr, uint32_t numOfBytes) {
 			numOfBytesToCopy = remainingRequiredBytes;
 			remainingRequiredBytes = 0;
 		}
-		//copy to the correct part of the output, some output from a keyfile, max num of availible required bytes
+		//copy to the correct part of the output, some output from a keyfile, max num of available required bytes
 		memcpy(&outputBytes[usedOutputBytes], &keyFileContents[sourceOffset], numOfBytesToCopy);
 		//move a pointer along to count where we are in output
 		usedOutputBytes += numOfBytesToCopy;
@@ -198,7 +198,7 @@ int main(int argc, char const *argv[]) {
 	scanf("%s", path);
 
 	//open the ptr
-	struct pointerFile *ptr = readPtrFile(path, "nextAvailible.ptr");
+	struct pointerFile *ptr = readPtrFile(path, "nextAvailable.ptr");
 	if(ptr == NULL) {
 		perror("Could not read pointer");
 		return -1;
@@ -219,9 +219,6 @@ int main(int argc, char const *argv[]) {
 		//encrypt
 		oneTimePad(ptr, inputFile, fileSize, "crypted");
 
-
-		//decrypt
-		mkPtrCopy(ptr, "decrypt.ptr");
 
 		incrementPtrFile(ptr, fileSize);
 

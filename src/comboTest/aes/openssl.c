@@ -5,6 +5,7 @@
 #include <string.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #include <arpa/inet.h>
 #include <sys/time.h>
@@ -34,27 +35,31 @@ int nextRand(EVP_CIPHER_CTX *context, unsigned char *output){
 	encrypt(context, output);
 }
 
+int getKey(unsigned char *output, int outputLength) {
+	//open devrandom and read in the data to the output
+	FILE *devRandomfd = fopen("/dev/random", "rb");
+	fread(output, 1, sizeof(char)* outputLength, devRandomfd);
+	fclose(devRandomfd);
+	//do quantis if we can
+	unsigned char *quantisKey = malloc(outputLength);
+	if(QuantisCount(QUANTIS_DEVICE_USB)){
+		if(QuantisRead(QUANTIS_DEVICE_USB, 0, quantisKey, outputLength) != outputLength) errorHandling("QuantisRead");
+		for (int i = 0; i < outputLength; i++) {
+			output[i] = output[i] ^ quantisKey[i];
+		}
+	}
+	free(quantisKey);
+	return 0;
+}
 
 EVP_CIPHER_CTX *setupCTR(unsigned char keyOut[16], unsigned char keyIn[16]) {
-	//Initialise the library
-
 	//define 128bit key and read into it
 	unsigned char key[16];
 	//if the user specifies a keyIn they want to provide a key for crypto
 	if(keyIn != NULL) {
 		memcpy(key, keyIn, 16);
 	} else {
-		FILE *devRandomfd = fopen("/dev/random", "rb");
-		fread(key, 1, sizeof(char)*16, devRandomfd);
-		fclose(devRandomfd);
-		//do quantis if we can
-		unsigned char quantisKey[16];
-		if( QuantisCount(QUANTIS_DEVICE_USB)){
-			if(QuantisRead(QUANTIS_DEVICE_USB, 0, quantisKey, 16) != 16) errorHandling("QuantisRead");
-			for (int i = 0; i < 16; i++) {
-				key[i] = key[i] ^ quantisKey[i];
-			}
-		}
+		getKey(key, 16);
 	}
 
 	//if the user has specified keyout then they want to preserve the key
