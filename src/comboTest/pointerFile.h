@@ -8,16 +8,13 @@ struct pointerFile {
 	//filename of the pointer file
 	char filename[25];
 	//current file or dir
-	uint16_t currentFile;
+	uint32_t currentFile;
 	//current offset into that file
-	uint32_t byteOffset;
-	//the mode being used, dir or file
-	unsigned char mode;
-	
+	uint64_t byteOffset;
 };
 
 //create a new pointer file
-struct pointerFile *createPtrFile(char *dir, unsigned char mode);
+struct pointerFile *createPtrFile(char *dir);
 
 //create a struct from a existing file
 struct pointerFile *readPtrFile(char *dir, char *filename);

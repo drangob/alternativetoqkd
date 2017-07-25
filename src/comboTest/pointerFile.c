@@ -8,14 +8,13 @@
 #define FILESIZE 100003840
 
 //create a new pointer file
-struct pointerFile *createPtrFile(char *dir, unsigned char mode) {
+struct pointerFile *createPtrFile(char *dir) {
 	//copy the data into the ptr
 	struct pointerFile *ptr = malloc(sizeof(struct pointerFile));
 	strcpy(ptr->dirPath, dir);
 	strcpy(ptr->filename, "nextAvailible.ptr");
 	ptr->currentFile = 0;
 	ptr->byteOffset = 0;
-	ptr->mode = mode;
 
 	if (savePtr(ptr)){
 		exit(-1);
@@ -39,9 +38,8 @@ int savePtr(struct pointerFile *ptr) {
 	}
 
 	//fill in all the data 
-	if( fwrite(&ptr->currentFile, sizeof(ptr->currentFile), 1, fd) != 1 ||
-	    fwrite(&ptr->byteOffset, sizeof(ptr->byteOffset), 1, fd) != 1 ||
-	    fwrite(&ptr->mode, sizeof(ptr->mode), 1, fd) != 1) {
+	if( fwrite(&ptr->currentFile, sizeof(uint32_t), 1, fd) != 1 ||
+	    fwrite(&ptr->byteOffset, sizeof(uint64_t), 1, fd) != 1 ) {
 
 		puts("Could not write ptr");
 		return -1;
@@ -68,9 +66,8 @@ struct pointerFile *readPtrFile(char *dir, char *filename) {
 
 	//read the ptr and put into struct
 	//if fails show error
-	if( fread(&ptr->currentFile, sizeof(uint16_t), 1, fd) != 1 ||
-		fread(&ptr->byteOffset, sizeof(uint32_t), 1, fd) != 1 ||
-		fread(&ptr->mode, sizeof(unsigned char), 1, fd) != 1) {
+	if( fread(&ptr->currentFile, sizeof(uint32_t), 1, fd) != 1 ||
+		fread(&ptr->byteOffset, sizeof(uint64_t), 1, fd) != 1 ) {
 
 		puts("Could not read data from pointer.");
 		exit(1);
@@ -89,9 +86,8 @@ struct pointerFile *updatePtrFile(struct pointerFile *ptr) {
 	//setup write into file
 	FILE *fd = fopen(filePath, "wb");
 
-	if( fwrite(&ptr->currentFile, sizeof(uint16_t), 1, fd) != 1 ||
-		fwrite(&ptr->byteOffset, sizeof(uint32_t), 1, fd) != 1 ||
-		fwrite(&ptr->mode, sizeof(char), 1, fd) != 1) {
+	if( fwrite(&ptr->currentFile, sizeof(uint32_t), 1, fd) != 1 ||
+		fwrite(&ptr->byteOffset, sizeof(uint64_t), 1, fd) != 1 ) {
 
 		puts("Could not write data to pointer.");
 		return NULL;
@@ -136,15 +132,12 @@ int mkPtrCopy(struct pointerFile *source, char *destName) {
 	dest->currentFile = source->currentFile;
 	//current offset into that file
 	dest->byteOffset = source->byteOffset;
-	//the mode being used, dir or file
-	dest->mode = source->mode;
 
 	savePtr(dest);
 
 }
 
 int packPtrFile(struct pointerFile *ptr, unsigned char output[7]) {
-	memcpy(output, &ptr->currentFile, 2);
-	memcpy(output+2,&ptr->byteOffset, 4);
-	memcpy(output+6, &ptr->mode, 1);
+	memcpy(output, &ptr->currentFile, sizeof(uint32_t));
+	memcpy(output+sizeof(uint32_t),&ptr->byteOffset, sizeof(uint64_t));
 }

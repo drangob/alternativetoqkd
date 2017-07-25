@@ -34,9 +34,9 @@ unsigned char *crypto(char *path, char inputKey[16]) {
 	//if there is no key we make one up
 	if(inputKey == NULL) {	
 		//use ssl to encrypt -- requesting the key
-		context = sslSetup(key, NULL);
+		context = setupCTR(key, NULL);
 	} else { //if there is a key we use it
-		context = sslSetup(key, inputKey);
+		context = setupCTR(key, inputKey);
 	}
 	//printf("Key: %s\n", key);
 	
@@ -63,8 +63,7 @@ unsigned char *crypto(char *path, char inputKey[16]) {
 
 	fclose(fd);
 
-	//close reader without flushing
-	sslClose(context);
+	cleanupContext(context);
 
 	gettimeofday(&tv2, NULL);
 	struct timeval tvdiff = { tv2.tv_sec - tv1.tv_sec, tv2.tv_usec - tv1.tv_usec };
@@ -127,8 +126,8 @@ int decryptKeyFiles(char *path) {
 
 EVP_CIPHER_CTX *encryptKeyStreamSetup(char *keyFilePath) {
 	//setup the keystream context and save the key
-	unsigned char keyStreamInitKey[16];
-	EVP_CIPHER_CTX *context = sslSetup(keyStreamInitKey, NULL);
+	unsigned char keyStreamInitKey[16] = "";
+	EVP_CIPHER_CTX *context = setupCTR(keyStreamInitKey, NULL);
 
 	//open the file to save the keys
 	char outputFile[250] = "";
@@ -203,20 +202,10 @@ int lockDownKeys(char *keyFilePath, int isEncrypt, struct pointerFile *ptr) {
 	uint32_t newFileSize = 0;
 
 	if (isEncrypt) {
-		AEAD_AES_128_CBC_HMAC_SHA_256_ENCRYPT(key, fileContents, fileSize,
-										  ptrData, 7,
-										  newFileContents, &newFileSize);
 	} else {
-		AEAD_AES_128_CBC_HMAC_SHA_256_DECRYPT(key, fileContents, fileSize,
-										  ptrData, 7,
-										  newFileContents, &newFileSize);
 	}
 	
-	FILE *writingFd = fopen(inputFile, "wb");
-	fwrite(newFileContents, newFileSize, 1, writingFd);
-	fclose(writingFd);
-
-	//free(newFileContents);
+	free(newFileContents);
 }
 
 
@@ -244,7 +233,7 @@ int cryptFileBuffer(char *fileContents, uint32_t contentsSize, int fileNumber, c
 	fread(key, 16, 1, fd);
 	fclose(fd);
 
-	EVP_CIPHER_CTX *context = sslSetup(NULL, key);	
+	EVP_CIPHER_CTX *context = setupCTR(NULL, key);	
 	char ctrKey[16];
 	//loop through the size of the file contents by 16 bytes each time
 	for(int i = 0; i < contentsSize; i+=16) {
@@ -258,4 +247,5 @@ int cryptFileBuffer(char *fileContents, uint32_t contentsSize, int fileNumber, c
 			if(i + j > contentsSize) break;
 		}
 	}
+	cleanupContext(context);
 }

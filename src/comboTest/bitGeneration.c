@@ -15,7 +15,6 @@
 #include "bitGeneration.h"
 
 #define LARGEBYTES 100003840
-#define SMALLBYTES 16384
 #define REKEYBYTES 100003840 / 300
 
 uint32_t getFileSize(FILE *fd) {
@@ -71,7 +70,7 @@ int writeFile(char *outputFile, uint32_t fileSize, EVP_CIPHER_CTX *keystreamCont
 	unsigned char cipher[16];
 
 	//container for RDRAND randoms
-	unsigned long long longRand;
+	unsigned long long longRand = 0;
 
 	//put the rekeys into per outputted 16 byte increments
 	const unsigned int rekeysPerOutput = REKEYBYTES / 16;
@@ -84,12 +83,12 @@ int writeFile(char *outputFile, uint32_t fileSize, EVP_CIPHER_CTX *keystreamCont
 
 		//rekey at sensible interval 
 		if (i % rekeysPerOutput == 0) {
-			rekey(keystreamContext);
+			rekeyCTR(keystreamContext);
 		} 
 
 		//get random twice - because the aes output is 128 bits
 		for (int i = 0; i < 2; i++) {
-			_rdrand64_step(&longRand);
+			//_rdrand64_step(&longRand);
 			//xor it
 			output[i*7] = output[i*7] ^ longRand;
 
@@ -137,16 +136,14 @@ int writeFile(char *outputFile, uint32_t fileSize, EVP_CIPHER_CTX *keystreamCont
 }
 
 int generateChunks(char *path, uint32_t chunksNo, uint32_t fileSize, char *secondaryPath) {
-	struct pointerFile *ptr = createPtrFile(path, '0');
-	//if we want simultaneous writing
-	//if(secondaryPath[0]!='\0') createPtrFile(secondaryPath, 0);
+	struct pointerFile *ptr = createPtrFile(path);
 
 	//write different files to consecutive file names
 	char filename[150];
 	char filename2[150];
 	for (uint32_t i = 0; i < chunksNo; i++) {
 		//create a new context for each file to effectively rekey per file
-		EVP_CIPHER_CTX *context = sslSetup(NULL, NULL);
+		EVP_CIPHER_CTX *context = setupCTR(NULL, NULL);
 		//saves the key into the path
 		EVP_CIPHER_CTX *cipherContext = encryptKeyStreamSetup(path);
 
@@ -158,12 +155,14 @@ int generateChunks(char *path, uint32_t chunksNo, uint32_t fileSize, char *secon
 			filename2[0] = '\0';
 		}
 		writeFile(filename, fileSize, context, cipherContext, filename2);
-		sslClose(context);
-		sslClose(cipherContext);
+
+		cleanupContext(context);
+		cleanupContext(cipherContext);
+
 	}
 	//lock the keys only in one dir. Copy the resulting salt and keys
 
-	lockKeys(path, ptr);	
+	//lockKeys(path, ptr);	
 	if (secondaryPath[0] != '\0') {
 		char src[100], dest[100];
 		sprintf(src, "%s/keys", path);
@@ -176,7 +175,7 @@ int generateChunks(char *path, uint32_t chunksNo, uint32_t fileSize, char *secon
 		sprintf(dest, "%s/nextAvailible.ptr", secondaryPath);
 		copyFile(dest, src);
 	}
-
+	free(ptr);
 }
 
 int main(int argc, char const *argv[]) {

@@ -7,11 +7,11 @@
 int nextRand(EVP_CIPHER_CTX *context, unsigned char *output);
 
 int encrypt(EVP_CIPHER_CTX *context, unsigned char *output);
-EVP_CIPHER_CTX *sslSetup(unsigned char keyOut[16], unsigned char keyIn[16]);
-int sslClose(EVP_CIPHER_CTX *context);
+EVP_CIPHER_CTX *setupCTR(unsigned char keyOut[16], unsigned char keyIn[16]);
+int cleanupContext(EVP_CIPHER_CTX *context);
 void errorHandling(char *str);
 
-void rekey(EVP_CIPHER_CTX *context);
+void rekeyCTR(EVP_CIPHER_CTX *context);
 
 
 int cfbEncrypt(unsigned char keyIn[32], unsigned char *input, uint32_t inputSize, unsigned char *output);
