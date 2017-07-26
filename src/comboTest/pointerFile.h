@@ -13,6 +13,14 @@ struct pointerFile {
 	uint64_t byteOffset;
 	//the salt of the password unlock operation
 	unsigned char salt[16];
+	//the ciphertext of k2
+	unsigned char ciphertext[16];
+	//the mac of the ptr
+	unsigned char mac[16];
+	//save scrypt key in the pointer from time to time to ensure we dont have to enter the password all the time
+	unsigned char scryptKey[16];
+	//loggedin bool
+	int loggedin;
 };
 
 //create a new pointer file
@@ -33,8 +41,14 @@ int mkPtrCopy(struct pointerFile *source, char *destName);
 //saving pointers in own method is better for sanity
 int savePtr(struct pointerFile *ptr);
 
-int packPtrFile(struct pointerFile *ptr, unsigned char output[12]);
-
 int verifyPtrFile(struct pointerFile *ptr);
+
+int doGCMEncrypt(struct pointerFile *ptr, unsigned char *k2in);
+
+int doGCMDecrypt(struct pointerFile *ptr, unsigned char* k2out);
+
+int scryptLogin(struct pointerFile *ptr);
+
+int scryptLogout(struct pointerFile *ptr);
 
 #endif //_POINTER_FILE_H_

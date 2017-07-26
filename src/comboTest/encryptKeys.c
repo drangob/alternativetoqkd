@@ -195,7 +195,7 @@ int lockDownKeys(char *keyFilePath, int isEncrypt, struct pointerFile *ptr) {
 
 	//get the additional data for hmac
 	unsigned char ptrData[7];
-	packPtrFile(ptr, ptrData); 
+	//packPtrFile(ptr, ptrData); 
 
 	//setup output
 	char *newFileContents = malloc(fileSize+32);
