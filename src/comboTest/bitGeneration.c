@@ -15,7 +15,7 @@
 #include "bitGeneration.h"
 
 #define LARGEBYTES 100003840
-#define REKEYBYTES 100003840 / 300
+#define REKEYBYTES 1000000
 
 uint32_t getFileSize(FILE *fd) {
 	fseek(fd, 0L, SEEK_END);
@@ -118,9 +118,6 @@ int writeFile(char *outputFile, uint32_t fileSize, EVP_CIPHER_CTX *keystreamCont
 	if (tvdiff.tv_usec < 0) { tvdiff.tv_usec += 1000000; tvdiff.tv_sec -= 1; }
 
 
-	printf("Getting bytes took %ld.%06ld\n", tvdiff.tv_sec, tvdiff.tv_usec);
-
-
 	struct timeval tv3, tv4;
 	gettimeofday(&tv3, NULL);
 
@@ -130,7 +127,9 @@ int writeFile(char *outputFile, uint32_t fileSize, EVP_CIPHER_CTX *keystreamCont
 	gettimeofday(&tv4, NULL);
 	struct timeval tvdiff2 = { tv4.tv_sec - tv3.tv_sec, tv4.tv_usec - tv3.tv_usec };
 	if (tvdiff2.tv_usec < 0) { tvdiff2.tv_usec += 1000000; tvdiff2.tv_sec -= 1; }
-	printf("Writing to disk took %ld.%06ld\n", tvdiff2.tv_sec, tvdiff2.tv_usec);
+
+
+	printf("Getting bytes took: %ld.%06ld : Writing to disk took: %ld.%06ld\n", tvdiff.tv_sec, tvdiff.tv_usec, tvdiff2.tv_sec, tvdiff2.tv_usec);
 
 	return 0;
 }
