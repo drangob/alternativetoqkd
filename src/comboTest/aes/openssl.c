@@ -149,20 +149,17 @@ int aes_gcm_encrypt(unsigned char *plaintext, int plaintext_len, unsigned char *
 		errorHandling("Aes gcm encrypt - init");
 	}
 
-	// setup GCM with nonce of 96 bits
-	if(1 != EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_IVLEN, 16, NULL)){
-		errorHandling("aes_gcm_encrypt - setup nonce length");
-	}
-
 	 // Initialise key and nonce
 	if(1 != EVP_EncryptInit_ex(ctx, NULL, NULL, key, nonce)){
 		errorHandling("aes_gcm_encrypt- key and nonce");
 	} 
 
-	//add in the associated data.
-	if(1 != EVP_EncryptUpdate(ctx, NULL, &len, associatedData, associatedDataLength)) {
-		errorHandling("aes_gcm_encrypt - add associatedData");
-	} 
+	if (associatedDataLength>0) {		
+		//add in the associated data.
+		if(1 != EVP_EncryptUpdate(ctx, NULL, &len, associatedData, associatedDataLength)) {
+			errorHandling("aes_gcm_encrypt - add associatedData");
+		} 
+	}
 
 	//Do the encryption of the text
 	if(1 != EVP_EncryptUpdate(ctx, ciphertext, &len, plaintext, plaintext_len)){
@@ -205,19 +202,17 @@ int aes_gcm_decrypt(unsigned char *ciphertext, int ciphertext_len, unsigned char
 		errorHandling("aes_gcm_decrypt - init cipher");
 	}
 
-	/* Set IV length. Not necessary if this is 12 bytes (96 bits) */
-	if(!EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_IVLEN, 16, NULL)) {
-		errorHandling("aes_gcm_decrypt - ctrl cipher");
-	}
 
 	/* Initialise key and IV */
 	if(!EVP_DecryptInit_ex(ctx, NULL, NULL, key, nonce)) {
 		errorHandling("aes_gcm_decrypt - init nonce & key");
 	}
 
-	//do associated data
-	if(!EVP_DecryptUpdate(ctx, NULL, &len, associatedData, associatedDataLength)) {
-		errorHandling("aes_gcm_decrypt - associatedData");
+	if(associatedDataLength>0){
+		//do associated data
+		if(!EVP_DecryptUpdate(ctx, NULL, &len, associatedData, associatedDataLength)) {
+			errorHandling("aes_gcm_decrypt - associatedData");
+		}
 	}
 
 	/* Provide the message to be decrypted, and obtain the plaintext output.
@@ -240,15 +235,5 @@ int aes_gcm_decrypt(unsigned char *ciphertext, int ciphertext_len, unsigned char
 	/* Clean up */
 	cleanupContext(ctx);
 
-	if(ret > 0)
-	{
-		/* Success */
-		plaintext_len += len;
-		return plaintext_len;
-	}
-	else
-	{
-		/* Verify failed */
-		return -1;
-	}
+	return ret;
 }

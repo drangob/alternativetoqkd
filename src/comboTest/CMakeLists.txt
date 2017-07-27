@@ -21,5 +21,5 @@ target_link_libraries(RandomGeneration opensslAES ${OPENSSL_LIBRARIES} scrypt Qu
 add_executable(RandomConsumption ptrIncrementer.c pointerFile.c encryptKeys.c)
 target_link_libraries(RandomConsumption opensslAES ${OPENSSL_LIBRARIES} scrypt Quantis)
 
-add_executable(tester tester.c)
+add_executable(tester tester.c pointerFile.c)
 target_link_libraries(tester opensslAES ${OPENSSL_LIBRARIES} scrypt Quantis)

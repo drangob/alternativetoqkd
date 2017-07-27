@@ -137,8 +137,6 @@ char *getBytes(char *path, struct pointerFile *ptr, uint32_t numOfBytes) {
 	int usedFiles = numOfBytes / keyFileSize;
 	int leftoverOffset = numOfBytes % keyFileSize;
 
-	//we are about to start reading files - we need access to the keys to decrypt them
-	unlockKeys(path, ptr);
 
 	//we need a big buffer to put the bytes into when read
 	char *outputBytes = malloc(numOfBytes);
@@ -157,8 +155,12 @@ char *getBytes(char *path, struct pointerFile *ptr, uint32_t numOfBytes) {
 			exit(-1);
 		}
 
+		if(!verifyPtrFile(ptr)) exit(-1);
+		
+		unsigned char k2[16];
+		doGCMDecrypt(ptr, k2);
 		//decrypt the file in memory
-		cryptFileBuffer(keyFileContents, keyFileSize, ptr->currentFile + i, path);
+		cryptFileBuffer(k2, keyFileContents, keyFileSize, ptr->currentFile + i, path);
 
 		//if this is the first file then we need to copy from an offset
 		int sourceOffset = 0;
@@ -187,7 +189,7 @@ char *getBytes(char *path, struct pointerFile *ptr, uint32_t numOfBytes) {
 	}
 	//inrement here so we can integrity protect it
 	incrementPtrFile(ptr, numOfBytes);
-	lockKeys(path, ptr);
+	scryptLogout(ptr);
 	return outputBytes;
 
 }

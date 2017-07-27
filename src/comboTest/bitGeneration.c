@@ -147,7 +147,10 @@ int generateChunks(char *path, uint32_t chunksNo, uint32_t fileSize, char *secon
 		//create a new context for each file to effectively rekey per file
 		EVP_CIPHER_CTX *context = setupCTR(NULL, NULL);
 		//saves the key into the path
-		EVP_CIPHER_CTX *cipherContext = encryptKeyStreamSetup(path);
+
+		unsigned char k2[16];
+		doGCMDecrypt(ptr, k2);
+		EVP_CIPHER_CTX *cipherContext = encryptKeyStreamSetup(path, i, k2);
 
 		//edit the file name on each loop
 		sprintf(filename, "%s/%u.bin", path, i);
@@ -161,18 +164,15 @@ int generateChunks(char *path, uint32_t chunksNo, uint32_t fileSize, char *secon
 		cleanupContext(context);
 		cleanupContext(cipherContext);
 	}
-
-	//lockKeys(path, ptr);	
+	verifyPtrFile(ptr);
+	scryptLogout(ptr);
 	if (secondaryPath[0] != '\0') {
 		char src[100], dest[100];
 		sprintf(src, "%s/keys", path);
 		sprintf(dest, "%s/keys", secondaryPath);
 		copyFile(dest, src);
-		sprintf(src, "%s/salt", path);
-		sprintf(dest, "%s/salt", secondaryPath);
-		copyFile(dest, src);
-		sprintf(src, "%s/nextAvailible.ptr", path);
-		sprintf(dest, "%s/nextAvailible.ptr", secondaryPath);
+		sprintf(src, "%s/nextAvailable.ptr", path);
+		sprintf(dest, "%s/nextAvailable.ptr", secondaryPath);
 		copyFile(dest, src);
 	}
 	free(ptr);

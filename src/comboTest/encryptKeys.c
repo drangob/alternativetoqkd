@@ -73,61 +73,22 @@ unsigned char *crypto(char *path, char inputKey[16]) {
 	return key;
 }
 
-int encryptKeyFiles(char *path) {
-	char outputFile[250] = "";
-	sprintf(outputFile, "%s/keys", path);
-	FILE *fd = fopen(outputFile,"wb");
 
-	char keyFileName[275] = "";
-
-	char *outputKey;
-	//infinite loop until we cant read a file 
-	for (int i = 0; i > -1; ++i) {
-		//get the key file names
-		sprintf(keyFileName, "%s/%d.bin", path, i);
-		outputKey = crypto(keyFileName, NULL);
-		if(outputKey == NULL) {
-			free(outputKey);
-			break;
-		}
-		//printf("%s\n", outputKey);
-		fwrite(outputKey, 16, 1, fd);
-		free(outputKey);
-	}
-
-	fclose(fd);
-}
-
-	
-
-
-int decryptKeyFiles(char *path) {
-	char inputFile[250] = "";
-	sprintf(inputFile, "%s/keys", path);
-
-	FILE *fd = fopen(inputFile, "r");
-	char decryptKey[16];
-	char *outputKey;
-
-	char keyFileName[275] = "";
-
-	for (int i = 0; i > -1; i++) {
-		sprintf(keyFileName, "%s/%d.bin", path, i);
-		fread(decryptKey, 16, 1, fd);
-		outputKey = crypto(keyFileName, decryptKey);
-		if(outputKey == NULL) {
-			free(outputKey);
-			break;
-		}
-	}
-
-	fclose(fd);
-}
-
-EVP_CIPHER_CTX *encryptKeyStreamSetup(char *keyFilePath) {
+EVP_CIPHER_CTX *encryptKeyStreamSetup(char *keyFilePath, int fileNumber, unsigned char *k2) {
 	//setup the keystream context and save the key
 	unsigned char keyStreamInitKey[16] = "";
 	EVP_CIPHER_CTX *context = setupCTR(keyStreamInitKey, NULL);
+
+	//create nonce
+	uint32_t nonce[3] = {0,0,fileNumber};
+
+
+	unsigned char ciphertext[16];
+	unsigned char mac[16];
+	aes_gcm_encrypt(keyStreamInitKey, 16, NULL, 0, k2, (unsigned char *) nonce, ciphertext, mac);
+	unsigned char outputbuf[32];
+	memcpy(outputbuf, ciphertext, 16);
+	memcpy(outputbuf+16, mac, 16);
 
 	//open the file to save the keys
 	char outputFile[250] = "";
@@ -140,7 +101,7 @@ EVP_CIPHER_CTX *encryptKeyStreamSetup(char *keyFilePath) {
 		exit(-1);
 	}
 
-	if(fwrite(keyStreamInitKey, 16, 1, fd) != 1) {
+	if(fwrite(outputbuf, 32, 1, fd) != 1) {
 		perror("Writing encryption key failed");
 		exit(-1);
 	}
@@ -149,76 +110,8 @@ EVP_CIPHER_CTX *encryptKeyStreamSetup(char *keyFilePath) {
 	return context;
 }
 
-int lockDownKeys(char *keyFilePath, int isEncrypt, struct pointerFile *ptr) {
-	char inputFile[250] = "";
-	sprintf(inputFile, "%s/keys", keyFilePath);
 
-	FILE *fd = fopen(inputFile, "r");
-	uint32_t fileSize = getFileSize(fd);
-	rewind(fd);
-	//read the entire file into memory
-	char *fileContents = malloc(fileSize);
-	fread(fileContents, fileSize, 1, fd);
-	//close and reopen for writing
-	fclose(fd);
-
-	if (isEncrypt) {
-		puts("Please enter a password to lock down the keys.");
-	} else {
-		puts("Please enter a password to unlock the keys.");
-	}
-	
-	char password[50];
-	scanf("%s", password);
-	int passwordlength = strlen(password);
-
-	//get the salt from the library if it does not exist
-	char salt[32];
-	int saltlength = 32;
-	char saltFile[250] = "";
-	sprintf(saltFile, "%s/salt", keyFilePath);
-
-	FILE *saltFd = fopen(saltFile, "r+");
-	//if the file does not exist we make one
-	if (saltFd == NULL) {
-		libscrypt_salt_gen(salt, 32);
-		saltFd = fopen(saltFile, "w");
-		fwrite(salt, saltlength, 1, saltFd);
-	} else { //if it existed we read it
-		fread(salt, saltlength, 1, saltFd);
-	}
-	fclose(saltFd);
-
-	//output of scrypt
-	unsigned char key[32];
-	libscrypt_scrypt(password, passwordlength, salt, saltlength, SCRYPT_N, SCRYPT_r, SCRYPT_p, key, 32);
-
-	//get the additional data for hmac
-	unsigned char ptrData[7];
-	//packPtrFile(ptr, ptrData); 
-
-	//setup output
-	char *newFileContents = malloc(fileSize+32);
-	uint32_t newFileSize = 0;
-
-	if (isEncrypt) {
-	} else {
-	}
-	
-	free(newFileContents);
-}
-
-
-int lockKeys(char *keyFilePath, struct pointerFile *ptr) {
-	lockDownKeys(keyFilePath, 1, ptr);
-}
-
-int unlockKeys(char *keyFilePath, struct pointerFile *ptr) {
-	lockDownKeys(keyFilePath, 0, ptr);
-}
-
-int cryptFileBuffer(char *fileContents, uint32_t contentsSize, int fileNumber, char *path) {
-	
+int cryptFileBuffer(unsigned char *k2, char *fileContents, uint32_t contentsSize, int fileNumber, char *path) {
 	char keyFilePath[250] = "";
 	sprintf(keyFilePath, "%s/keys", path);
 	//open up the file of decryption keys
@@ -227,11 +120,20 @@ int cryptFileBuffer(char *fileContents, uint32_t contentsSize, int fileNumber, c
 		perror("Opening key file failed.");
 	}
 	//seek to the correct key for decryption of the file buffer
-	fseek(fd, fileNumber * 16, SEEK_SET);
+	fseek(fd, fileNumber * 32, SEEK_SET);
 	//read they key
+	unsigned char ciphertext[32];
+	fread(ciphertext, 32, 1, fd);
+	fclose(fd);	
+
+	uint32_t nonce[3] = {0,0,fileNumber};
+
 	unsigned char key[16];
-	fread(key, 16, 1, fd);
-	fclose(fd);
+
+	if (aes_gcm_decrypt(ciphertext, 16, NULL, 0, ciphertext+16, k2, (unsigned char *) nonce, key) < 0){
+		printf("Getting file key failed.\n");
+		exit(-1);
+	}
 
 	EVP_CIPHER_CTX *context = setupCTR(NULL, key);	
 	char ctrKey[16];

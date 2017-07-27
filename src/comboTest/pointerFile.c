@@ -112,16 +112,11 @@ struct pointerFile *readPtrFile(char *dir, char *filename) {
 	return ptr;
 }
 
-struct pointerFile *updatePtrFile(struct pointerFile *ptr){
+struct pointerFile *incrementPtrFile(struct pointerFile *ptr, uint64_t increment) {
+	//get k2 before incrementing to preserve it
 	unsigned char k2[16];
 	doGCMDecrypt(ptr, k2);
-	doGCMEncrypt(ptr, k2);
-	savePtr(ptr);
 
-	return ptr;
-}
-
-struct pointerFile *incrementPtrFile(struct pointerFile *ptr, uint64_t increment) {
 	//pointer file must increment in blocks of 16
 	if (increment % 16 != 0) {
 		increment = increment - (increment % 16);
@@ -144,7 +139,9 @@ struct pointerFile *incrementPtrFile(struct pointerFile *ptr, uint64_t increment
 		ptr->byteOffset += increment;
 	}
 
-	updatePtrFile(ptr);
+	//put k2 back in
+	doGCMEncrypt(ptr, k2);
+	savePtr(ptr);
 }
 
 int getNonce(struct pointerFile *ptr, unsigned char output[12]) {
@@ -178,15 +175,7 @@ int doGCMEncrypt(struct pointerFile *ptr, unsigned char *k2input) {
 	memcpy(associatedData, ptr->salt, 16);
 	memcpy(associatedData+16, nonce, 12);
 
-	unsigned char ciphertextOutput[16] = "";
-	unsigned char macOutput[16] = "";
-
-	int ciphertextLen = aes_gcm_encrypt(k2input, 16, associatedData, 28, ptr->scryptKey, nonce, ciphertextOutput, macOutput);
-
-	printf("ciphertextLen %d\n", ciphertextLen);
-
-	memmove(ptr->ciphertext, ciphertextOutput, 16);
-	memmove(ptr->mac, macOutput, 16);
+	int ciphertextLen = aes_gcm_encrypt(k2input, 16, associatedData, 28, ptr->scryptKey, nonce, ptr->ciphertext, ptr->mac);
 
 	return 0;
 }
@@ -204,11 +193,6 @@ int doGCMDecrypt(struct pointerFile *ptr, unsigned char *k2out) {
 	memcpy(associatedData+16, nonce, 12);
 
 	int ciphertext_len = 16;
-	unsigned char ciphertextInput[16];
-	unsigned char macInput[16];
-
-	memcpy(ciphertextInput, ptr->ciphertext, 16);
-	memcpy(macInput, ptr->mac, 16);
 
 	int ret = aes_gcm_decrypt(ptr->ciphertext, ciphertext_len, associatedData, 28, ptr->mac, ptr->scryptKey, nonce, k2out);
 
@@ -224,9 +208,5 @@ int verifyPtrFile(struct pointerFile *ptr) {
 		return 0;
 	}
 	
-}
-
-int getk2FromPtr(struct pointerFile *ptr, unsigned char *k2) {
-	return doGCMDecrypt(ptr, k2);
 }
 
