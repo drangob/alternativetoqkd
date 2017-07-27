@@ -41,14 +41,14 @@ int getKey(unsigned char *output, int outputLength) {
 	fread(output, 1, sizeof(char)* outputLength, devRandomfd);
 	fclose(devRandomfd);
 	//do quantis if we can
-	unsigned char *quantisKey = malloc(outputLength);
 	if(QuantisCount(QUANTIS_DEVICE_USB)){
+		unsigned char *quantisKey = malloc(outputLength);
 		if(QuantisRead(QUANTIS_DEVICE_USB, 0, quantisKey, outputLength) != outputLength) errorHandling("QuantisRead");
 		for (int i = 0; i < outputLength; i++) {
 			output[i] = output[i] ^ quantisKey[i];
 		}
+		free(quantisKey);
 	}
-	free(quantisKey);
 	return 0;
 }
 
