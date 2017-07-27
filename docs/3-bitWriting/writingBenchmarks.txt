@@ -1,0 +1,15 @@
+Rekey interval set to 1MB
+
+Writing to one disk - No quantis:
+	44.8543492039638 MB/s
+
+Writing to one disk - W/ quantis:
+	34.5394857957539 MB/s
+
+
+Writing to two disks - No quantis:
+	38.7113719784444 MB/s
+
+Writing to two disks - W/ quantis:
+	32.9725431500297 MB/s
+
