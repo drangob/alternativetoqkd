@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <string.h>
 #include <time.h>
 #include <immintrin.h>
 #include <sys/types.h>
@@ -134,9 +135,9 @@ int writeFile(char *outputFile, uint32_t fileSize, EVP_CIPHER_CTX *keystreamCont
 	return 0;
 }
 
-int generateChunks(char *path, uint32_t chunksNo, uint32_t fileSize, char *secondaryPath) {
+int generateChunks(char *path, char *ptrPath, uint32_t chunksNo, uint32_t fileSize, char *secondaryPath, char *secondaryPtrPath) {
 	//creates a pointer file
-	struct pointerFile *ptr = createPtrFile(path);
+	struct pointerFile *ptr = createPtrFile(ptrPath);
 	verifyPtrFile(ptr);
 
 	//write different files to consecutive file names
@@ -170,8 +171,8 @@ int generateChunks(char *path, uint32_t chunksNo, uint32_t fileSize, char *secon
 		sprintf(src, "%s/keys", path);
 		sprintf(dest, "%s/keys", secondaryPath);
 		copyFile(dest, src);
-		sprintf(src, "%s/nextAvailable.ptr", path);
-		sprintf(dest, "%s/nextAvailable.ptr", secondaryPath);
+		sprintf(src, "%s/nextAvailable.ptr", ptrPath);
+		sprintf(dest, "%s/nextAvailable.ptr", secondaryPtrPath);
 		copyFile(dest, src);
 	}
 	free(ptr);
@@ -181,18 +182,43 @@ int main(int argc, char const *argv[]) {
 	uint32_t fileSize;
 
 	char path[150];
+	char ptrPath[150];
 	printf("Please enter the full path of the directory for storage.\nENSURE THAT THIS IS EXT4 AND JOURNALLING IS DISABLED.\n");
 	scanf("%s", path);
+
+
+	printf("Would you like to store your state file off disk? y/n\n");
+	char ptrChoice = ' ';
+	while(!(ptrChoice == 'y' | ptrChoice == 'n')) {
+		scanf(" %c", &ptrChoice);	
+	}
+	if (ptrChoice == 'y') {
+		printf("Please enter the path where you want to save your state.\n");
+		scanf("%s", ptrPath);
+	} else {
+		strcpy(ptrPath, path);
+	}
+
+
 
 	printf("Would you like to do simultaneous writing to two disks? y/n\n");
 	char choice = ' ';
 	while(!(choice == 'y' | choice == 'n')) {
 		scanf(" %c", &choice);	
 	}
+
+
 	char secondaryPath[150];
+	char secondaryPtrPath[150];
 	if (choice == 'y') {
 		printf("Please enter the path of the secondary directory.\n");
 		scanf("%s", secondaryPath);	
+		if (ptrChoice == 'y') {
+			printf("Please enter the path where you want to save your secondary state.\n");
+			scanf("%s", secondaryPtrPath);
+		} else {
+			strcpy(secondaryPtrPath, secondaryPath);
+		}
 	} else {
 		secondaryPath[0] = '\0';
 	}
@@ -208,7 +234,7 @@ int main(int argc, char const *argv[]) {
 
 
 	fileSize = LARGEBYTES;
-	generateChunks(path, chunksNo, fileSize, secondaryPath);
+	generateChunks(path, ptrPath, chunksNo, fileSize, secondaryPath, secondaryPtrPath);
 	
 
 	return 0;

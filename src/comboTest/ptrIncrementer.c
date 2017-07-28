@@ -13,7 +13,6 @@
 
 int shred(char *filename, int upToByte) {
 	if (fork() == 0) {//if we are the fork
-		printf("shredding!\n");
 		char bytes[10];
 		sprintf(bytes, "%u", upToByte);
 		execl("/usr/bin/shred", "/usr/bin/shred", filename, "-z", "-s", bytes, NULL);
@@ -21,24 +20,6 @@ int shred(char *filename, int upToByte) {
 		wait(NULL);
 		return 0;
 	}
-}
-
-
-unsigned char oneTimePadReadByte(FILE *fd, uint32_t fileSize, struct pointerFile *ptr, uint16_t *keyNum) {
-	unsigned char output;
-	if(ftell(fd) < fileSize) {
-		//printf("reading a byte WITHOUT overflow\n");
-	} else {
-		fclose(fd);
-
-		*keyNum += 1;
-
-		char keyPath[267];
-		sprintf(keyPath, "%s/%u.bin", ptr->dirPath, *keyNum);
-		fd = fopen(keyPath, "rb");
-	}
-	fread(&output, sizeof(char), 1, fd);
-	return output;
 }
 
 
@@ -52,6 +33,11 @@ uint32_t getFileSize(FILE *fd) {
 //opens into memory and decrypts they key file
 char *openFile(char *filename) {
 	FILE *fd = fopen(filename, "rb");
+	if(fd == NULL) {
+		printf("%s. ", filename);
+		perror("Opening file to read into memory failed.");
+		exit(1);
+	}
 	uint32_t fileSize = getFileSize(fd);
 	//read the entire filecontents to a string
 	char *fileContents = malloc(fileSize);
@@ -63,73 +49,20 @@ char *openFile(char *filename) {
 	return fileContents;
 }
 
-int oneTimePad(struct pointerFile *ptr, FILE *fd, uint32_t fileSize, char *outputname) {
-	//rewind the file
-	rewind(fd);
-
-	//open the pointed to file
-	char cryptoPath[267];
-	sprintf(cryptoPath, "%s/%u.bin", ptr->dirPath, ptr->currentFile);
-
-	FILE *fdKey = fopen(cryptoPath, "rb");
-	uint32_t keyFileSize = getFileSize(fdKey);
-	rewind(fdKey);
-
-	//seek to the correct part of the key
-	fseek(fdKey, ptr->byteOffset, SEEK_SET);
-
-	//keynum in case it needs incrementing on read
-	uint16_t keyNum = ptr->currentFile;
-
-	unsigned char inputByte;
-	unsigned char keyByte;
-	unsigned char cipherByte;
-
-	FILE *newCipher = fopen(outputname, "wb");
-
-	for(uint32_t i = 0; i < fileSize; i++) {
-		fread(&inputByte, sizeof(char), 1, fd);
-		keyByte = oneTimePadReadByte(fdKey, keyFileSize, ptr, &keyNum);
-		//fread(&keyByte, sizeof(char), 1, fdKey);
-		cipherByte = inputByte ^ keyByte;
-		fwrite(&cipherByte, sizeof(char), 1, newCipher);
-	}
-
-	fclose(fdKey);
-	fclose(newCipher);
-
-	//do shredding
-	//if there is overspill then we need to do multiple files
-	if(ptr->byteOffset + fileSize > keyFileSize) {
-		//calculate the files we have used up completely
-		int usedFiles = fileSize / keyFileSize;
-		int leftoverOffset = fileSize % keyFileSize;
-		//for each file we've filled, shred the whole thing
-		int i = ptr->currentFile;
-		for (; i < usedFiles; ++i) {
-			char fileToShred[270];
-			sprintf(fileToShred, "%s/%u.bin", ptr->dirPath, i);
-			shred(fileToShred, keyFileSize);
-		}
-		//shred into the last file
-		i++;
-		char fileToShred[270];
-		sprintf(fileToShred, "%s/%u.bin", ptr->dirPath, i);
-		shred(fileToShred, leftoverOffset);
-	} else { //we didnt overspill - easy shredding
-		shred(cryptoPath, ptr->byteOffset + fileSize);
-	}
-
-	
-}
 
 char *getBytes(char *path, struct pointerFile *ptr, uint32_t numOfBytes) {
 	//get the current file out of the ptr file
 	char curFileName[267];
-	sprintf(curFileName, "%s/%u.bin", ptr->dirPath, ptr->currentFile);
+	sprintf(curFileName, "%s/%u.bin", path, ptr->currentFile);
 
 	//get the size of the keyfile
 	FILE *fd = fopen(curFileName, "r");
+	if(fd == NULL) {
+		printf("%s. ", curFileName);
+		perror("Opening file failed");
+		exit(-1);
+	}
+
 	uint32_t keyFileSize = getFileSize(fd);
 	fclose(fd);
 
@@ -146,7 +79,7 @@ char *getBytes(char *path, struct pointerFile *ptr, uint32_t numOfBytes) {
 	//for each file we need to read into read it
 	for (int i = 0; i <= usedFiles; ++i) {
 		//new file name is ptr + for loop iteration
-		sprintf(curFileName, "%s/%u.bin", ptr->dirPath, ptr->currentFile + i);		
+		sprintf(curFileName, "%s/%u.bin", path, ptr->currentFile + i);		
 		//read the file into memory
 		char *keyFileContents = openFile(curFileName);
 		//check for shredded file contents
@@ -196,53 +129,45 @@ char *getBytes(char *path, struct pointerFile *ptr, uint32_t numOfBytes) {
 
 int main(int argc, char const *argv[]) {
 	puts("What is the path for your randoms?");
-	char path[267];
+	char path[150];
 	scanf("%s", path);
 
+	char ptrPath[150];
+	printf("Is your state file stored off disk? y/n\n");
+	char ptrChoice = ' ';
+	while(!(ptrChoice == 'y' | ptrChoice == 'n')) {
+		scanf(" %c", &ptrChoice);	
+	}
+	if (ptrChoice == 'y') {
+		printf("Please enter the path where your state is saved.\n");
+		scanf("%s", ptrPath);
+	} else {
+		strcpy(ptrPath, path);
+	}
+
 	//open the ptr
-	struct pointerFile *ptr = readPtrFile(path, "nextAvailable.ptr");
+	struct pointerFile *ptr = readPtrFile(ptrPath, "nextAvailable.ptr");
 	if(ptr == NULL) {
 		perror("Could not read pointer");
 		return -1;
 	}
 
-	int isOTP = 0;
-
-	if(isOTP){
-		char fileToCrypt[267];
-		puts("Please enter the path of yourfile to encrypt");
-		scanf("%s", fileToCrypt);
-		FILE *inputFile = fopen(fileToCrypt, "rb");
-
-		uint32_t fileSize = getFileSize(inputFile);
-
-		printf("file to crypt size %u\n", fileSize);
-
-		//encrypt
-		oneTimePad(ptr, inputFile, fileSize, "crypted");
+	//request some bytes and write them to a file.
+	puts("How many bytes do you want to read?");
+	uint32_t bytesAmt;
+	scanf("%d", &bytesAmt);
 
 
-		incrementPtrFile(ptr, fileSize);
 
-	} else {
-		puts("How many bytes do you want to read?");
-		uint32_t bytesAmt;
-		scanf("%d", &bytesAmt);
+	void *resulting = getBytes(path, ptr, bytesAmt);
 
-		
 
-		void *resulting = getBytes(path, ptr, bytesAmt);
+	char savepath[250];
+	sprintf(savepath, "%s/output.bin", path);
+	FILE *saveFile = fopen(savepath, "wb");
+	fwrite(resulting, 1, bytesAmt, saveFile);
+	fclose(saveFile);
 
-		
-		char savepath[250];
-		sprintf(savepath, "%s/output.bin", path);
-		FILE *saveFile = fopen(savepath, "wb");
-		fwrite(resulting, 1, bytesAmt, saveFile);
-		fclose(saveFile);
-
-	}
-
-	
 
 
 
