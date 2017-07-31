@@ -50,11 +50,5 @@ int main(int argc, char const *argv[]) {
 
 	doGCMEncrypt(ptr, k2);
 
-	
-
-	scryptLogout(ptr);
-
-
-
 	return 0;
 }
