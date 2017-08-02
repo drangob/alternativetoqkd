@@ -4,6 +4,7 @@
 #include <linux/kernel.h>
 #include <linux/fs.h>
 #include <asm/uaccess.h>
+#include <linux/semaphore.h>
 
 #define DEVICE_NAME "wgchar"
 #define CLASS_NAME  "wgcharClass"
@@ -16,8 +17,9 @@ MODULE_VERSION("0.1");
 
 static int    majorNumber;
 static unsigned char   presharedKey[PSK_LEN] = {0};
-static short  size_of_presharedKey; 
-static int isFull = 0; //used to ensure that only one key is in the device at a time!
+
+static struct semaphore readingSemaphore;
+static struct semaphore writingSemaphore;
 
 static int    numberOpens = 0;
 static struct class*  wgcharClass  = NULL;
@@ -67,6 +69,11 @@ static int __init wgChar_init(void){
 		return PTR_ERR(wgCharDevice);
 	}
 	printk(KERN_INFO "wgChar: device class created correctly\n");
+
+	//init read/write semaphore
+	sema_init(&readingSemaphore, 0);
+	sema_init(&writingSemaphore, 1);
+
 	return 0;
 }
 
@@ -76,7 +83,7 @@ static void __exit wgChar_exit(void){
 	class_unregister(wgcharClass);
 	class_destroy(wgcharClass);
 	unregister_chrdev(majorNumber, DEVICE_NAME);
-	printk(KERN_INFO "wgChar: Shutting down!\n");
+	printk(KERN_INFO "wgChar: Shutting down_interruptible!\n");
 }
 
 //Called when a user opens the file
@@ -91,27 +98,11 @@ static int dev_open(struct inode *inodep, struct file *filep){
 	return 0;
 }
 
-//called when the userspace reads the file
-//simply returns a bool so state if the file is filled or not. If its filled, we do not accept more keys
+//called when read, should not be done as we never read from userspace
 static ssize_t dev_read(struct file *filep, char *buffer, size_t len, loff_t *offset){
-
-	////////////////SHOULD SIMPLY RETURN WHETHER THE FILE HAS OR DOES NOT HAV A KEY
-	int size = sizeof(int);
-	int error_count = 0;
-	// copy_to_user has the format ( * to, *from, size) and returns 0 on success
-
-	//copies boolean to see if there is something in the device or not
-	error_count = copy_to_user(buffer, &isFull, sizeof(int));
-
-	
-	if (error_count==0){            // if true then have success
-		printk(KERN_INFO "wgChar: Sent %d characters to the user\n", size);
-		return (size_of_presharedKey=0);  // clear the position to the start and return 0
-	}
-	else {
-		printk(KERN_INFO "wgChar: Failed to send %d characters to the user\n", error_count);
-		return -EFAULT;              // Failed -- return a bad address presharedKey (i.e. -14)
-	}
+	copy_to_user(buffer, "\0", sizeof(char));
+	printk(KERN_ALERT "wgChar: User tried to read key!\n");
+	return 1;
 }
 
 //when the userspace writes to the file
@@ -120,15 +111,15 @@ static ssize_t dev_read(struct file *filep, char *buffer, size_t len, loff_t *of
 static ssize_t dev_write(struct file *filep, const char *buffer, size_t len, loff_t *offset){
 	if(len != PSK_LEN){
 		printk(KERN_ALERT "wgChar: Received an incorrect length key\n");
+		return 1;
 	}
-	if(!isFull){
-		copy_from_user(presharedKey, buffer, PSK_LEN);
-		size_of_presharedKey = len;                 // store the length of the stored presharedKey
-		printk(KERN_INFO "wgChar: Received key from the user\n");
-		isFull=1;
-	} else {
-		printk(KERN_ALERT "wgChar: Received unexpected key from the user\n");
-	}
+	//try to down the semaphore allowing us to write
+	down_interruptible(&writingSemaphore);
+	copy_from_user(presharedKey, buffer, PSK_LEN);
+	printk(KERN_INFO "wgChar: Received key from the user\n");
+	//allow people to read the data we just sabed
+	up(&readingSemaphore);
+
 	return len;
 }
 
@@ -138,8 +129,19 @@ static int dev_release(struct inode *inodep, struct file *filep){
 	return 0;
 }
 
-int getPSKfromdev(char *out) {
+
+int getPSKfromdev(u8 *out);
+EXPORT_SYMBOL(getPSKfromdev);
+
+int getPSKfromdev(u8 *out) {
+	printk(KERN_INFO "wgChar: Trying to get the PSK.\n");
+	//try to down and read the data
+	down_interruptible(&readingSemaphore);
 	memcpy(out, presharedKey, PSK_LEN);
+	printk(KERN_INFO "wgChar: got the PSK from the device.\n");
+	memset(presharedKey, '\x00', PSK_LEN);
+	//up to allow a new key to be entered
+	up(&writingSemaphore);
 	return 0;
 }
 

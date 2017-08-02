@@ -9,15 +9,18 @@
 
 int main() {
 	int ret, fd;
-	char key[PSK_LEN];
+	unsigned char key[PSK_LEN] = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 	//open 
 	fd = open("/dev/wgchar", O_RDWR);             
 
-	printf("Type in a 32bit key to send to the kernel module:\n");
-	scanf("%s", key);
-	printf("Sending msg to device [%s].\n", key);
+	//printf("Type in a 32bit key to send to the kernel module:\n");
+	//scanf("%s", key);
 
-	ret = write(fd, key, strlen(key)); 
+	printf("Sending msg to device [");
+	fwrite(key, PSK_LEN, 1, stdout);
+	printf("]\n");
+
+	ret = write(fd, key, PSK_LEN); 
 	if (ret < 0){
 		perror("Failed to write the message to the device.");
 		return errno;
