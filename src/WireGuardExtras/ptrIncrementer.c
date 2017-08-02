@@ -167,6 +167,7 @@ int main(int argc, char const *argv[]) {
 		key = getBytes(path, ptr, bytesAmt);
 		//send it to wireguard
 		write(wgchar, key, bytesAmt);
+		printf("Sent key to wireguard!\n");
 		free(key);
 	}
 	
