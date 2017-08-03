@@ -77,18 +77,9 @@ void packet_queue_handshake_initiation(struct wireguard_peer *peer, bool is_retr
 void packet_send_handshake_response(struct wireguard_peer *peer)
 {
 	struct message_handshake_response packet;
-	u8 peer_preshared_key[NOISE_SYMMETRIC_KEY_LEN];
-	extern int getPSKfromdev(u8 *out);
 
-	net_dbg_ratelimited("%s: Sending handshake response (attempt %d) to peer %Lu (%pISpfsc)\n", peer->device->dev->name, peer->responseCtr, peer->internal_id, &peer->endpoint.addr);
+	net_dbg_ratelimited("%s: Sending handshake response to peer %Lu (%pISpfsc)\n", peer->device->dev->name, peer->internal_id, &peer->endpoint.addr);
 	peer->last_sent_handshake = get_jiffies_64();
-
-	if(!peer->responseCtr){
-		//Grab the next preshared key
-		getPSKfromdev(peer_preshared_key);
-		memcpy(peer->handshake.preshared_key, peer_preshared_key, NOISE_SYMMETRIC_KEY_LEN);
-	}
-	peer->responseCtr++;
 
 	if (noise_handshake_create_response(&packet, &peer->handshake)) {
 		cookie_add_mac_to_packet(&packet, sizeof(packet), peer);
