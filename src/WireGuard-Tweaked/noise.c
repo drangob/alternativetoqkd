@@ -340,13 +340,18 @@ static void tai64n_now(u8 output[NOISE_TIMESTAMP_LEN])
 
 bool noise_handshake_create_initiation(struct message_handshake_initiation *dst, struct noise_handshake *handshake)
 {
-
+	u8 peer_preshared_key[NOISE_SYMMETRIC_KEY_LEN];
 
 	u8 timestamp[NOISE_TIMESTAMP_LEN];
 	u8 key[NOISE_SYMMETRIC_KEY_LEN];
 	bool ret = false;
 
+	//TODO TAKE RETRIES INTO ACCOUNT WHEN SENDING TO PREVENT DESYNC
 
+	//get a key from the character device wgchar
+	extern int getPSKfromdev(u8 *out);
+	getPSKfromdev(peer_preshared_key);
+	memcpy(handshake->preshared_key, peer_preshared_key, NOISE_SYMMETRIC_KEY_LEN);
 
 
 	down_read(&handshake->static_identity->lock);
