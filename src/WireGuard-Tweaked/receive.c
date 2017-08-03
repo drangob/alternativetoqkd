@@ -105,6 +105,7 @@ static void receive_handshake_packet(struct wireguard_device *wg, struct sk_buff
 		}
 		update_latest_addr(peer, skb);
 		net_dbg_ratelimited("%s: Receiving handshake initiation from peer %Lu (%pISpfsc)\n", wg->dev->name, peer->internal_id, &peer->endpoint.addr);
+		peer->initiationCtr = 0;
 		packet_send_handshake_response(peer);
 		break;
 	}

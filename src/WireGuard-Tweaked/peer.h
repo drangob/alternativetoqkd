@@ -51,6 +51,7 @@ struct wireguard_peer {
 	struct rcu_head rcu;
 	struct list_head peer_list;
 	u64 internal_id;
+	unsigned int initiationCtr;
 #ifdef CONFIG_WIREGUARD_PARALLEL
 	atomic_t parallel_encryption_inflight;
 #endif

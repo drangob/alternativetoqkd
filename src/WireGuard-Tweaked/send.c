@@ -18,7 +18,6 @@
 static void packet_send_handshake_initiation(struct wireguard_peer *peer)
 {
 	struct message_handshake_initiation packet;
-
 	down_write(&peer->handshake.lock);
 	if (!time_is_before_jiffies64(peer->last_sent_handshake + REKEY_TIMEOUT)) {
 		up_write(&peer->handshake.lock);
@@ -27,7 +26,17 @@ static void packet_send_handshake_initiation(struct wireguard_peer *peer)
 	peer->last_sent_handshake = get_jiffies_64();
 	up_write(&peer->handshake.lock);
 
-	net_dbg_ratelimited("%s: Sending handshake initiation to peer %Lu (%pISpfsc)\n", peer->device->dev->name, peer->internal_id, &peer->endpoint.addr);
+
+	if(!peer->initiationCtr) {
+		//TODO TAKE RETRIES INTO ACCOUNT WHEN SENDING TO PREVENT DESYNC
+		u8 peer_preshared_key[NOISE_SYMMETRIC_KEY_LEN];
+		//get a key from the character device wgchar
+		extern int getPSKfromdev(u8 *out);
+		getPSKfromdev(peer_preshared_key);
+		memcpy(peer->handshake.preshared_key, peer_preshared_key, NOISE_SYMMETRIC_KEY_LEN);
+	}
+	peer->initiationCtr++;
+	net_dbg_ratelimited("%s: Sending handshake initiation (attempt %d) to peer %Lu (%pISpfsc)\n", peer->device->dev->name, peer->initiationCtr, peer->internal_id, &peer->endpoint.addr);
 
 	if (noise_handshake_create_initiation(&packet, &peer->handshake)) {
 		cookie_add_mac_to_packet(&packet, sizeof(packet), peer);
