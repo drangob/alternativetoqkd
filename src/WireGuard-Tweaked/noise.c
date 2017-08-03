@@ -340,14 +340,9 @@ static void tai64n_now(u8 output[NOISE_TIMESTAMP_LEN])
 
 bool noise_handshake_create_initiation(struct message_handshake_initiation *dst, struct noise_handshake *handshake)
 {
-
-
 	u8 timestamp[NOISE_TIMESTAMP_LEN];
 	u8 key[NOISE_SYMMETRIC_KEY_LEN];
 	bool ret = false;
-
-
-
 
 	down_read(&handshake->static_identity->lock);
 	down_write(&handshake->lock);
@@ -403,8 +398,6 @@ struct wireguard_peer *noise_handshake_consume_initiation(struct message_handsha
 	u8 hash[NOISE_HASH_LEN];
 	u8 chaining_key[NOISE_HASH_LEN];
 
-	u8 peer_preshared_key[NOISE_SYMMETRIC_KEY_LEN];
-	extern int getPSKfromdev(u8 *out);
 
 	down_read(&wg->static_identity.lock);
 	if (unlikely(!wg->static_identity.has_identity))
@@ -429,10 +422,6 @@ struct wireguard_peer *noise_handshake_consume_initiation(struct message_handsha
 		goto out;
 
 	handshake = &wg_peer->handshake;
-
-	//Grab the next preshared key
-	getPSKfromdev(peer_preshared_key);
-	memcpy(handshake->preshared_key, peer_preshared_key, NOISE_SYMMETRIC_KEY_LEN);
 
 	/* ss */
 	kdf(chaining_key, key, NULL, handshake->precomputed_static_static, NOISE_HASH_LEN, NOISE_SYMMETRIC_KEY_LEN, 0, NOISE_PUBLIC_KEY_LEN, chaining_key);
