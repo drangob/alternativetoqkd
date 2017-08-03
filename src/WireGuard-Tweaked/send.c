@@ -29,8 +29,6 @@ static void packet_send_handshake_initiation(struct wireguard_peer *peer)
 
 	net_dbg_ratelimited("%s: Sending handshake initiation to peer %Lu (%pISpfsc)\n", peer->device->dev->name, peer->internal_id, &peer->endpoint.addr);
 
-	printk(KERN_ALERT "This many attempts made %d", peer->handshake.state);
-
 	if (noise_handshake_create_initiation(&packet, &peer->handshake)) {
 		cookie_add_mac_to_packet(&packet, sizeof(packet), peer);
 		timers_any_authenticated_packet_traversal(peer);
