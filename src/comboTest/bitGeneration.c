@@ -170,8 +170,8 @@ int generateChunks(char *path, char *ptrPath, uint32_t chunksNo, uint32_t fileSi
 	if(lastFailed){
 		//read the last chunk progress
 		fread(&progCtr1, sizeof(uint32_t), 1, prog1);
-		fread(&progCtr2, sizeof(uint32_t), 1, prog2);
-		if(progCtr1 != progCtr2) {
+		if(isSecondFile) fread(&progCtr2, sizeof(uint32_t), 1, prog2);
+		if(isSecondFile && (progCtr1 != progCtr2)) {
 			printf("Disks are showing differing progress");
 			exit(-1);
 		}
@@ -216,13 +216,22 @@ int generateChunks(char *path, char *ptrPath, uint32_t chunksNo, uint32_t fileSi
 		progCtr1++;
 		progCtr2++;
 		fwrite(&progCtr1, sizeof(uint32_t), 1, prog1);
-		fwrite(&progCtr2, sizeof(uint32_t), 1, prog2);
 		fflush(prog1);
-		fflush(prog2);
+		rewind(prog1);
+		if(isSecondFile){
+			fwrite(&progCtr2, sizeof(uint32_t), 1, prog2);
+			fflush(prog2);
+			rewind(prog2);
+		}
 	}
 
 	verifyPtrFile(ptr);
 	scryptLogout(ptr);
+
+	fclose(prog1);
+	sprintf(progressPath, "%s/progress.lock", path);
+	remove(progressPath);
+
 	if (isSecondFile) {
 		char src[100], dest[100];
 		sprintf(src, "%s/keys", path);
@@ -231,15 +240,11 @@ int generateChunks(char *path, char *ptrPath, uint32_t chunksNo, uint32_t fileSi
 		sprintf(src, "%s/nextAvailable.ptr", ptrPath);
 		sprintf(dest, "%s/nextAvailable.ptr", secondaryPtrPath);
 		copyFile(dest, src);
+		fclose(prog2);
+		sprintf(progressPath, "%s/progress.lock", secondaryPath);
+		remove(progressPath);
 	}
 	free(ptr);
-
-	fclose(prog1);
-	fclose(prog2);
-	sprintf(progressPath, "%s/progress.lock", path);
-	remove(progressPath);
-	sprintf(progressPath, "%s/progress.lock", secondaryPath);
-	remove(progressPath);
 }
 
 int main(int argc, char const *argv[]) {
@@ -298,7 +303,7 @@ int main(int argc, char const *argv[]) {
 
 
 	fileSize = LARGEBYTES;
-	generateChunks(path, ptrPath, chunksNo, fileSize, secondaryPath, secondaryPtrPath);
+	generateChunks(path, ptrPath, chunksNo, fileSize, secondaryPath, secondaryPath);
 	
 
 	return 0;
