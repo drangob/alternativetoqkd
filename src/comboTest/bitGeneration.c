@@ -135,26 +135,75 @@ int writeFile(char *outputFile, uint32_t fileSize, EVP_CIPHER_CTX *keystreamCont
 	return 0;
 }
 
+int preWriteCleanup(char *path) {
+	char keysPath[150];
+	sprintf(keysPath, "%s/keys", path);
+	return remove(keysPath);
+}
+
 int generateChunks(char *path, char *ptrPath, uint32_t chunksNo, uint32_t fileSize, char *secondaryPath, char *secondaryPtrPath) {
+	int isSecondFile = secondaryPath[0] != '\0';
+	//see if there is progress lock files on the disk - indicates failure on last run
+	char progressPath[150];
+	FILE *prog1, *prog2;
+	uint32_t progCtr1, progCtr2;
+	progCtr1 = progCtr2 = 0;
+	int lastFailed = 0;
+	sprintf(progressPath, "%s/progress.lock", path);
+	prog1 = fopen(progressPath, "r+");
+	//if we can read a file, failed last time
+	if(prog1 != NULL) lastFailed = 1;
+
+	if(isSecondFile && lastFailed) {
+		sprintf(progressPath, "%s/progress.lock", secondaryPath);
+		prog2 = fopen(progressPath, "r+");
+		//if we failed to complete last time on disk 1, and disk 2 shows no sign of that failure
+		if(prog2 != NULL){
+			printf("Last run on disk 1 failed, but disk 2 shows no sign of those this. Resume failed.");
+			exit(-1);
+		}
+	}
+
+	uint32_t startingChunk = 0;
+	struct pointerFile *ptr;
+	//if we failed last time we want to resume to the last chunk we did
+	if(lastFailed){
+		//read the last chunk progress
+		fread(&progCtr1, sizeof(uint32_t), 1, prog1);
+		fread(&progCtr2, sizeof(uint32_t), 1, prog2);
+		if(progCtr1 != progCtr2) {
+			printf("Disks are showing differing progress");
+			exit(-1);
+		}
+		startingChunk = progCtr1;
+		ptr = readPtrFile(ptrPath, "nextAvailable.ptr");
+	} else { //if we didnt fail last time we need to create the lock
+		sprintf(progressPath, "%s/progress.lock", path);
+		prog1 = fopen(progressPath, "w");
+		sprintf(progressPath, "%s/progress.lock", secondaryPath);
+		prog2 = fopen(progressPath, "w");
+		ptr = createPtrFile(ptrPath);
+	}
+
 	//creates a pointer file
-	struct pointerFile *ptr = createPtrFile(ptrPath);
 	verifyPtrFile(ptr);
 
 	//write different files to consecutive file names
 	char filename[150];
 	char filename2[150];
-	for (uint32_t i = 0; i < chunksNo; i++) {
+	for (uint32_t i = startingChunk; i < chunksNo; i++) {
 		//create a new context for each file to effectively rekey per file
 		EVP_CIPHER_CTX *context = setupCTR(NULL, NULL);
 		//saves the key into the path
 
+		//setup a keystream to encrypt the large random bits
 		unsigned char k2[16];
 		doGCMDecrypt(ptr, k2);
 		EVP_CIPHER_CTX *cipherContext = encryptKeyStreamSetup(path, i, k2);
 
 		//edit the file name on each loop
 		sprintf(filename, "%s/%u.bin", path, i);
-		if (secondaryPath[0] != '\0') {
+		if (isSecondFile) {
 			sprintf(filename2, "%s/%u.bin", secondaryPath, i);
 		} else {
 			filename2[0] = '\0';
@@ -163,10 +212,18 @@ int generateChunks(char *path, char *ptrPath, uint32_t chunksNo, uint32_t fileSi
 
 		cleanupContext(context);
 		cleanupContext(cipherContext);
+
+		progCtr1++;
+		progCtr2++;
+		fwrite(&progCtr1, sizeof(uint32_t), 1, prog1);
+		fwrite(&progCtr2, sizeof(uint32_t), 1, prog2);
+		fflush(prog1);
+		fflush(prog2);
 	}
+
 	verifyPtrFile(ptr);
 	scryptLogout(ptr);
-	if (secondaryPath[0] != '\0') {
+	if (isSecondFile) {
 		char src[100], dest[100];
 		sprintf(src, "%s/keys", path);
 		sprintf(dest, "%s/keys", secondaryPath);
@@ -176,6 +233,13 @@ int generateChunks(char *path, char *ptrPath, uint32_t chunksNo, uint32_t fileSi
 		copyFile(dest, src);
 	}
 	free(ptr);
+
+	fclose(prog1);
+	fclose(prog2);
+	sprintf(progressPath, "%s/progress.lock", path);
+	remove(progressPath);
+	sprintf(progressPath, "%s/progress.lock", secondaryPath);
+	remove(progressPath);
 }
 
 int main(int argc, char const *argv[]) {

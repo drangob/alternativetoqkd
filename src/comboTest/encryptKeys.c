@@ -94,7 +94,8 @@ EVP_CIPHER_CTX *encryptKeyStreamSetup(char *keyFilePath, int fileNumber, unsigne
 	char outputFile[250] = "";
 	sprintf(outputFile, "%s/keys", keyFilePath);
 	
-	FILE *fd = fopen(outputFile, "a");
+	FILE *fd = fopen(outputFile, "w");
+	fseek(fd, fileNumber * 32, SEEK_SET);
 
 	if(fd == NULL) {
 		perror("Opening encryption keys failed");
