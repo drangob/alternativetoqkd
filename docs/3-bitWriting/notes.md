@@ -15,7 +15,7 @@ Key for AES-GCM is a password derived key k1.
 - RDRand is used as keystream k1.
 - Primary AES CTR mode keystream k2 is setup for random generation.
 - Secondary CTR mode keystream k3 is setup for encryption of the random bits.
-- -Key for secondary keystream is encrypted in AES-GCM with k2 and a in a 
+- - Key for secondary keystream is encrypted in AES-GCM with k2 and a in a 
 keyfile.
 - AES CTR mode keystreams are keyed from Quantis (if available) and /dev/random
 
@@ -23,3 +23,32 @@ keyfile.
 - k2 is rekeyed at an interval which won't effect performance too badly.
 - Random bits are then encrypted by (k1 XOR k2) XOR k3.
 
+## AES-GCM
+AES-GCM is used as an encryption method for the keyfile and pointer/state file 
+as it provides confidentiality and integrity protection without too much of a 
+file storage footprint.  
+Integrity and confidentiality needed to protect the Pointer and Key files as 
+they could both be read to gain access to the random bits, or edited to change
+the output of the decrypted random bits.
+
+### Pointer/State File
+The pointer/state file is an AES-GCM ciphertext file comprised of:  
+`AD = scrypt-salt||file-number||byte-offset`  
+`k1 = scrypt(password, salt)`  
+`ctext = AES-GCM(ptext = k2, key = k1, nonce = file-number||byte-offset, AD)`  
+`pointer-file = AD || ctext`
+
+### Keyfile
+Keyfile holds each of the 128 bit AES-CTR keys which are used to encrypt the 
+random bit files.  
+Each of these keys is encrypted using AES-GCM as follows:  
+`AES-GCM(ptext = AES-CTR key, key = k2 nonce = file-number, AD = null)`
+
+## Simultaneous writing
+Simultaneous writing is availible as an option to enable a faster system to 
+distribute the keys to multiple disks. This is faster over the approach of 
+copying the contents of a written disk to a second disk after generation.  
+Simultaneous writing has an increase of 450ms over standard writing, whereas 
+copying the files after generation results in 960ms per file.  
+Therefore simultaneous writing doubles the speed of distribution of the files to
+multiple disks.
