@@ -185,7 +185,7 @@ int generateChunks(char *path, char *ptrPath, uint32_t chunksNo, uint32_t fileSi
 		ptr = createPtrFile(ptrPath);
 	}
 
-	//creates a pointer file
+	//check pointer file / login
 	verifyPtrFile(ptr);
 
 	//write different files to consecutive file names
