@@ -4,10 +4,10 @@
 If the file we seek to encrypt is bigger than the space, reading the data should
 seamlessly pass to the next file on the disk to get more data.
 
-When reading from the bits. we need to calculate where to read up to if we have 
-an overflow as in the ptr struct increment we do this by.
-offset / filesize = filesfilled
-offset % filesize = newoffset 
+When reading from the bits. we need to calculate where to read up to if we have
+an overflow as in the ptr struct increment we do this by.  
+`offset / filesize = filesfilled  
+offset % filesize = newoffset `
 
 
 # Process
