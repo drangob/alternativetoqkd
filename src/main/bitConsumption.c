@@ -6,9 +6,6 @@
 #include <sys/wait.h>
 #include <string.h>
 
-#include <sys/stat.h>
-#include <fcntl.h>
-
 #include "pointerFile.h"
 #include "encryptKeys.h"
 
@@ -125,8 +122,9 @@ char *getBytes(char *path, struct pointerFile *ptr, uint32_t numOfBytes) {
 	}
 	//inrement here so we can integrity protect it
 	incrementPtrFile(ptr, numOfBytes);
-	//scryptLogout(ptr);
+	scryptLogout(ptr);
 	return outputBytes;
+
 }
 
 int main(int argc, char const *argv[]) {
@@ -164,25 +162,23 @@ int main(int argc, char const *argv[]) {
 		return -1;
 	}
 
-	uint32_t bytesAmt = 32;
+	//request some bytes and write them to a file.
+	puts("How many bytes do you want to read?");
+	uint32_t bytesAmt;
+	scanf("%d", &bytesAmt);
 
-	if(access("/dev/wgchar", F_OK)<0){
-		printf("Cannot find the character device. Is it loaded?\n");
-		exit(-1);
-	}
 
-	int wgchar = open("/dev/wgchar", O_WRONLY);
-	unsigned char *key;
 
-	//infite loop of sending the keys to wireguard
-	//semaphores save us from this being a horrible idea
-	while(1){
-		//get the key
-		key = getBytes(path, ptr, bytesAmt);
-		//send it to wireguard
-		write(wgchar, key, bytesAmt);
-		printf("Sent key to wireguard!\n");
-		free(key);
-	}
-	
+	void *resulting = getBytes(path, ptr, bytesAmt);
+
+
+	char savepath[250];
+	sprintf(savepath, "%s/output.bin", path);
+	FILE *saveFile = fopen(savepath, "wb");
+	fwrite(resulting, 1, bytesAmt, saveFile);
+	fclose(saveFile);
+
+
+
+
 }	
