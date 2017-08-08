@@ -438,7 +438,7 @@ struct wireguard_peer *noise_handshake_consume_initiation(struct message_handsha
 
 	handshake = &wg_peer->handshake;
 
-	//if this is the first time we are consuming the handshake, replace key
+	//TODO DOESNT WORK AS INIT ZEROS THE STATE!!!
 	if(handshake->state != HANDSHAKE_CONSUMED_INITIATION){
 		//Grab the next preshared key
 		getPSKfromdev(peer_preshared_key);
