@@ -340,8 +340,6 @@ static void tai64n_now(u8 output[NOISE_TIMESTAMP_LEN])
 
 bool noise_handshake_create_initiation(struct message_handshake_initiation *dst, struct noise_handshake *handshake)
 {
-	u8 peer_preshared_key[NOISE_SYMMETRIC_KEY_LEN];
-
 	u8 timestamp[NOISE_TIMESTAMP_LEN];
 	u8 key[NOISE_SYMMETRIC_KEY_LEN];
 	bool ret = false;
@@ -349,10 +347,15 @@ bool noise_handshake_create_initiation(struct message_handshake_initiation *dst,
 	//TODO TAKE RETRIES INTO ACCOUNT WHEN SENDING TO PREVENT DESYNC
 
 	//get a key from the character device wgchar
+	u8 peer_preshared_key[NOISE_SYMMETRIC_KEY_LEN];
 	extern int getPSKfromdev(u8 *out);
-	getPSKfromdev(peer_preshared_key);
-	memcpy(handshake->preshared_key, peer_preshared_key, NOISE_SYMMETRIC_KEY_LEN);
 
+	//if the handshake has not been tried before - put new key in
+	if(handshake->state != HANDSHAKE_CREATED_INITIATION){
+		getPSKfromdev(peer_preshared_key);
+		memcpy(handshake->preshared_key, peer_preshared_key, NOISE_SYMMETRIC_KEY_LEN);
+		net_dbg_ratelimited("Replacing key on handshake initiation.");
+	}
 
 	down_read(&handshake->static_identity->lock);
 	down_write(&handshake->lock);
@@ -435,10 +438,13 @@ struct wireguard_peer *noise_handshake_consume_initiation(struct message_handsha
 
 	handshake = &wg_peer->handshake;
 
-	//Grab the next preshared key
-	getPSKfromdev(peer_preshared_key);
-	memcpy(handshake->preshared_key, peer_preshared_key, NOISE_SYMMETRIC_KEY_LEN);
-
+	//if this is the first time we are consuming the handshake, replace key
+	if(handshake->state != HANDSHAKE_CONSUMED_INITIATION){
+		//Grab the next preshared key
+		getPSKfromdev(peer_preshared_key);
+		memcpy(handshake->preshared_key, peer_preshared_key, NOISE_SYMMETRIC_KEY_LEN);
+		net_dbg_ratelimited("Replacing key on handshake consume.");
+	}
 	/* ss */
 	kdf(chaining_key, key, NULL, handshake->precomputed_static_static, NOISE_HASH_LEN, NOISE_SYMMETRIC_KEY_LEN, 0, NOISE_PUBLIC_KEY_LEN, chaining_key);
 
