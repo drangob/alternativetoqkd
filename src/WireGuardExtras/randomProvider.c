@@ -156,6 +156,10 @@ int main(int argc, char const *argv[]) {
 
 	uint32_t bytesAmt = 32;
 
+	if(access("/dev/wgchar", O_WRONLY)<0){
+		printf("Cannot open the character device. Is it loaded?\n");
+		exit(-1);
+	}
 
 	int wgchar = open("/dev/wgchar", O_WRONLY);
 	unsigned char *key;
