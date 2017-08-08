@@ -166,8 +166,8 @@ int main(int argc, char const *argv[]) {
 
 	uint32_t bytesAmt = 32;
 
-	if(access("/dev/wgchar", F_OK)<0){
-		printf("Cannot find the character device. Is it loaded?\n");
+	if(access("/dev/wgchar", W_OK)<0){
+		printf("Cannot open the character device. Is it loaded? Do you have permissions?\n");
 		exit(-1);
 	}
 
