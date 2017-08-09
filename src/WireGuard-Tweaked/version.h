@@ -1,1 +1,0 @@
-#define WIREGUARD_VERSION "0.0.20170726-9-g4a2cf82-dirty"
