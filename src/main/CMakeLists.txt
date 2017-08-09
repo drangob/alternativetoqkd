@@ -18,5 +18,5 @@ set (CMAKE_C_FLAGS "-mrdrnd -g")
 add_executable(RandomGeneration bitGeneration.c pointerFile.c encryptKeys.c)
 target_link_libraries(RandomGeneration opensslAES ${OPENSSL_LIBRARIES} scrypt Quantis)
 
-add_executable(RandomConsumption bitConsumption.c pointerFile.c encryptKeys.c)
+add_executable(RandomConsumption outputRandoms.c bitConsumption.c pointerFile.c encryptKeys.c)
 target_link_libraries(RandomConsumption opensslAES ${OPENSSL_LIBRARIES} scrypt Quantis)

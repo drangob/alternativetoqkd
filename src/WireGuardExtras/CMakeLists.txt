@@ -15,5 +15,5 @@ find_package(OpenSSL)
 
 set (CMAKE_C_FLAGS "-mrdrnd -g")
 
-add_executable(RandomProvider randomProvider.c pointerFile.c encryptKeys.c)
+add_executable(RandomProvider randomProvider.c bitConsumption.c pointerFile.c encryptKeys.c)
 target_link_libraries(RandomProvider opensslAES ${OPENSSL_LIBRARIES} scrypt Quantis)

@@ -1,14 +1,11 @@
 #include <stdio.h>
-#include <stdlib.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
 
-#include "pointerFile.h"
 #include "bitConsumption.h"
+#include "pointerFile.h"
 
 int main(int argc, char const *argv[]) {
 	puts("What is the path for your randoms?");
@@ -45,25 +42,19 @@ int main(int argc, char const *argv[]) {
 		return -1;
 	}
 
-	uint32_t bytesAmt = 32;
+	//request some bytes and write them to a file.
+	puts("How many bytes do you want to read?");
+	uint32_t bytesAmt;
+	scanf("%d", &bytesAmt);
 
-	if(access("/dev/wgchar", W_OK)<0){
-		printf("Cannot open the character device. Is it loaded? Do you have permissions?\n");
-		exit(-1);
-	}
 
-	int wgchar = open("/dev/wgchar", O_WRONLY);
-	unsigned char *key;
 
-	//infite loop of sending the keys to wireguard
-	//semaphores save us from this being a horrible idea
-	while(1){
-		//get the key
-		key = getBytes(path, ptr, bytesAmt);
-		//send it to wireguard
-		write(wgchar, key, bytesAmt);
-		printf("Sent key to wireguard!\n");
-		free(key);
-	}
-	
+	void *resulting = getBytes(path, ptr, bytesAmt);
+
+
+	char savepath[250];
+	sprintf(savepath, "%s/output.bin", path);
+	FILE *saveFile = fopen(savepath, "wb");
+	fwrite(resulting, 1, bytesAmt, saveFile);
+	fclose(saveFile);
 }	
