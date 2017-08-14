@@ -25,3 +25,7 @@ from keyfile with k2 and the index of the key).
 - Use GNU shred (Gutman method) to delete the ciphertext of the random bit file
 which has just been read, disables it from being requested twice.
 
+
+## State file note.
+When accessing the state at any point, the user must call logout. Logout cleans
+up the memory and ensures that the key k2 is not visible in memory.
