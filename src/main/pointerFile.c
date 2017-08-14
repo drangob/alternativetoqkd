@@ -41,9 +41,9 @@ struct pointerFile *createPtrFile(char *dir) {
 }
 
 int savePtr(struct pointerFile *ptr) {
-	// if(!verifyPtrFile(ptr)){
-	// 	fprintf(stderr, "Pointer file is in invalid state, please re-encrypt before saving.\n");
-	// }
+	if(!verifyPtrFile(ptr)){
+		fprintf(stderr, "Pointer file is in invalid state, please re-encrypt before saving.\n");
+	}
 
 	//work out what to save the pointer as
 	char ptrSavePath[167];
@@ -210,3 +210,21 @@ int verifyPtrFile(struct pointerFile *ptr) {
 	
 }
 
+int fastFowardPtr(struct pointerFile *ptr, uint32_t fileNum, uint32_t offset) {
+	//if we want to fastfoward this is valid
+	if(fileNum >= ptr->currentFile && offset >= ptr->byteOffset) {
+		//get k2 before fast foward to preserve it
+		unsigned char k2[16];
+		doGCMDecrypt(ptr, k2);
+
+		ptr->currentFile = fileNum;
+		ptr->byteOffset = offset;
+
+		//put k2 back in
+		doGCMEncrypt(ptr, k2);
+		savePtr(ptr);
+	} else {
+		printf("Invalid fast foward. You cant get data from behind our current state.\n");
+	} 
+
+}
