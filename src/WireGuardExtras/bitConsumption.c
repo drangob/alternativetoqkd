@@ -28,6 +28,13 @@ uint32_t getFileSize(FILE *fd) {
 	return size;
 }
 
+//use this instead of memset 0 as aggressive compilers may render it insecure
+int secureMemoryWipe(void *ptr, size_t len) {
+	unsigned char *a = ptr;
+	while(len--) *a = '\0';
+	free(ptr);
+}
+
 //opens into memory and decrypts they key file
 char *openFile(char *filename) {
 	FILE *fd = fopen(filename, "rb");
@@ -112,8 +119,9 @@ char *getBytes(char *path, struct pointerFile *ptr, uint32_t numOfBytes) {
 		//move a pointer along to count where we are in output
 		usedOutputBytes += numOfBytesToCopy;
 
-		//free up the memory used by holding a whole file in memory
-		free(keyFileContents);
+		//Securely wipe the decrypted file from memory.
+
+		secureMemoryWipe(keyFileContents, keyFileSize);
 
 		//shred to zero on the bits we just used
 		shred(curFileName, sourceOffset + numOfBytesToCopy);
