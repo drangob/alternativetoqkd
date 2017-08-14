@@ -44,6 +44,16 @@ random bit files.
 Each of these keys is encrypted using AES-GCM as follows:  
 `AES-GCM(ptext = AES-CTR key, key = k2 nonce = file-number, AD = null)`
 
+### Rekeying
+ks2 is rekeyed at an interval which is low as possible to provide the 
+lowest possible number of bits per key without effecting performance too 
+harshly.  
+This is currently simply done by providing a constant number of bytes to 
+generate between rekeys at compile time. This means the user will have to 
+discern the best rekey interval for their specific system.  
+This is not the optimum solution, some sort of benchmarking to automatically 
+discern the best rekey interval for the system would be a good idea.
+
 ## Simultaneous writing
 Simultaneous writing is availible as an option to enable a faster system to 
 distribute the keys to multiple disks. This is faster over the approach of 
