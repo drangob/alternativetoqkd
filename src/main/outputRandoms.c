@@ -57,4 +57,8 @@ int main(int argc, char const *argv[]) {
 	FILE *saveFile = fopen(savepath, "wb");
 	fwrite(resulting, 1, bytesAmt, saveFile);
 	fclose(saveFile);
+
+	free(resulting);
+	scryptLogout(ptr);
+	free(ptr);
 }	
