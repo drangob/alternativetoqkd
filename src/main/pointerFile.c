@@ -212,7 +212,8 @@ int verifyPtrFile(struct pointerFile *ptr) {
 
 int fastFowardPtr(struct pointerFile *ptr, uint32_t fileNum, uint32_t offset) {
 	//if we want to fastfoward this is valid
-	if(fileNum >= ptr->currentFile && offset >= ptr->byteOffset) {
+	if(fileNum > ptr->currentFile || (fileNum == ptr->currentFile && offset >= ptr->byteOffset)) {
+		printf("Fast fowarding from file:%d:%lu to file:%d:%d\n", ptr->currentFile, ptr->byteOffset, fileNum, offset);
 		//get k2 before fast foward to preserve it
 		unsigned char k2[16];
 		doGCMDecrypt(ptr, k2);
@@ -223,8 +224,9 @@ int fastFowardPtr(struct pointerFile *ptr, uint32_t fileNum, uint32_t offset) {
 		//put k2 back in
 		doGCMEncrypt(ptr, k2);
 		savePtr(ptr);
+		return 0;
 	} else {
 		printf("Invalid fast foward. You cant get data from behind our current state.\n");
+		return 1;
 	} 
-
 }
