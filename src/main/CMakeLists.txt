@@ -1,22 +1,23 @@
 cmake_minimum_required(VERSION 2.8)
-project(RandomCombination)
+project(randomOperation)
 set(CMAKE_C_COMPILER gcc)
 
-include_directories(aes)
-link_directories(aes)
+include_directories(randombitlib)
+link_directories(randombitlib)
 
-include_directories(scrypt)
-link_directories(scrypt)
+include_directories(randombitlib/aes)
+link_directories(randombitlib/aes)
 
-include_directories(Quantis)
-link_directories(Quantis)
+include_directories(randombitlib/Quantis)
+link_directories(randombitlib/Quantis)
+
+include_directories(randombitlib/scrypt)
+link_directories(randombitlib/scrypt)
 
 find_package(OpenSSL)
 
-set (CMAKE_C_FLAGS "-mrdrnd -g")
+add_executable(RandomGeneration createRandoms.c)
+target_link_libraries(RandomGeneration randomWrite opensslAES ${OPENSSL_LIBRARIES} scrypt Quantis)
 
-add_executable(RandomGeneration bitGeneration.c pointerFile.c encryptKeys.c)
-target_link_libraries(RandomGeneration opensslAES ${OPENSSL_LIBRARIES} scrypt Quantis)
-
-add_executable(RandomConsumption outputRandoms.c bitConsumption.c pointerFile.c encryptKeys.c)
-target_link_libraries(RandomConsumption opensslAES ${OPENSSL_LIBRARIES} scrypt Quantis)
+add_executable(RandomConsumption outputRandoms.c)
+target_link_libraries(RandomConsumption randomRead opensslAES ${OPENSSL_LIBRARIES} scrypt Quantis)

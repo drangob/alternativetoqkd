@@ -4,6 +4,9 @@
 #include <stdint.h>
 #include <openssl/evp.h>
 
+#define LARGEBYTES 100003840
+#define REKEYBYTES 1000000
+
 uint32_t getFileSize(FILE *fd);
 
 //int writeFile(char *outputFile, uint32_t fileSize, EVP_CIPHER_CTX *context, EVP_CIPHER_CTX *cipherContext);
