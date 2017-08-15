@@ -92,6 +92,10 @@ struct pointerFile *readPtrFile(char *dir, char *filename) {
 
 
 	FILE *fd = fopen(filePath, "rb");
+	if(fd == NULL) {
+		perror("Error opening pointer file");
+		exit(-1);
+	}
 
 
 	//read the ptr and put into struct
