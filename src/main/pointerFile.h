@@ -51,6 +51,6 @@ int scryptLogin(struct pointerFile *ptr);
 
 int scryptLogout(struct pointerFile *ptr);
 
-int fastFowardPtr(struct pointerFile *ptr, uint32_t fileNum, uint32_t offset);
+int fastForwardPtr(struct pointerFile *ptr, uint32_t fileNum, uint32_t offset);
 
 #endif //_POINTER_FILE_H_

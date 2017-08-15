@@ -49,7 +49,7 @@ int main(int argc, char const *argv[]) {
 
 
 
-	void *resulting = getBytes(path, ptr, bytesAmt);
+	void *resulting = getBytes(path, ptr, bytesAmt); //getBytesWithFastForward(path, ptr, bytesAmt, 32, 32);
 
 
 	char savepath[250];

@@ -15,5 +15,7 @@ char *openFile(char *filename);
 
 
 char *getBytes(char *path, struct pointerFile *ptr, uint32_t numOfBytes);
+char *getBytesWithFastForward(char *path, struct pointerFile *ptr, uint32_t numOfBytes, uint32_t fileNumber, uint32_t offset);
+
 
 #endif //_BITCONSUMPTION_H_
