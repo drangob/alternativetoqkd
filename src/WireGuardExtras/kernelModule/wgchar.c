@@ -5,6 +5,7 @@
 #include <linux/fs.h>
 #include <asm/uaccess.h>
 #include <linux/semaphore.h>
+#include <linux/slab.h>
 
 #define DEVICE_NAME "wgchar"
 #define CLASS_NAME  "wgcharClass"
@@ -13,13 +14,18 @@
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Daniel Horbury");
 MODULE_DESCRIPTION("A character device to push Preshared-Keys to WireGuard");
-MODULE_VERSION("0.1");
+MODULE_VERSION("0.2");
 
-static int    majorNumber;
-static unsigned char   presharedKey[PSK_LEN] = {0};
+static int majorNumber = 0;
+static unsigned char presharedKey[PSK_LEN] = {0};
+static __le32 inputFileNum = 0;
+static __le64 inputByteOffset = 0;
 
 static struct semaphore readingSemaphore;
 static struct semaphore writingSemaphore;
+
+static struct semaphore userGetVectorSemaphore;
+static struct semaphore kernelGetDataSemaphore;
 
 static int    numberOpens = 0;
 static struct class*  wgcharClass  = NULL;
@@ -31,6 +37,20 @@ static int     dev_release(struct inode *, struct file *);
 static ssize_t dev_read(struct file *, char *, size_t, loff_t *);
 static ssize_t dev_write(struct file *, const char *, size_t, loff_t *);
 
+enum requestType {
+	KEYANDSTATE,
+	KEYFROMSTATE
+};
+
+//request vector
+struct requestVector {
+	enum requestType requestType;
+	__le32 fileNum;
+	__le64 byteOffset;
+};
+
+static struct requestVector requestVec;
+
 
 static struct file_operations fops = {
 	.open = dev_open,
@@ -38,6 +58,19 @@ static struct file_operations fops = {
 	.write = dev_write,
 	.release = dev_release,
 };
+
+
+int packRequestVector(struct requestVector *requestVector, unsigned char *buf) {
+	int offset = 0;
+	memcpy(buf + offset, &requestVector->requestType, sizeof(enum requestType));
+	offset += sizeof(enum requestType);
+	memcpy(buf + offset, &requestVector->fileNum, sizeof(__le32));
+	offset += sizeof(__le32);
+	memcpy(buf + offset, &requestVector->byteOffset, sizeof(__le64));
+
+	return 0;
+}
+
 
 //called when initialising the device
 static int __init wgChar_init(void){
@@ -74,6 +107,11 @@ static int __init wgChar_init(void){
 	sema_init(&readingSemaphore, 0);
 	sema_init(&writingSemaphore, 1);
 
+	sema_init(&userGetVectorSemaphore, 0);
+	sema_init(&kernelGetDataSemaphore, 0);
+	requestVec.fileNum = 0;
+	requestVec.byteOffset = 0;
+
 	return 0;
 }
 
@@ -98,27 +136,50 @@ static int dev_open(struct inode *inodep, struct file *filep){
 	return 0;
 }
 
-//called when read, should not be done as we never read from userspace
+//called when read, should provide a request vector so the userspace knows what to do
 static ssize_t dev_read(struct file *filep, char *buffer, size_t len, loff_t *offset){
-	copy_to_user(buffer, "\0", sizeof(char));
-	printk(KERN_ALERT "wgChar: User tried to read key!\n");
-	return 1;
+	unsigned char *packedVector;
+	printk(KERN_INFO "wgChar: user has requested the request vector");
+	//when the requestvector is filled, we can do stuff
+	down(&userGetVectorSemaphore);
+	//pack the vector to be read by the userspace
+	packedVector = kmalloc(sizeof(struct requestVector), GFP_KERNEL);
+	packRequestVector(&requestVec, packedVector);
+	//send it over
+	copy_to_user(buffer, packedVector, sizeof(struct requestVector));
+
+	kfree(packedVector);
+
+	printk(KERN_INFO "wgChar: User got the requestvector!\n");
+	return 0;
 }
 
 //when the userspace writes to the file
 //filep is the file
 //buf is what they send, len is the len of what they sent
 static ssize_t dev_write(struct file *filep, const char *buffer, size_t len, loff_t *offset){
-	if(len != PSK_LEN){
-		printk(KERN_ALERT "wgChar: Received an incorrect length key\n");
+	int requiredLength = PSK_LEN + sizeof(__le32) + sizeof(__le64);
+	int memcpyOffset;
+	unsigned char *inputBuffer;
+	//user should give key + state info, 
+	if(len != requiredLength){
+		printk(KERN_ALERT "wgChar: Received an incorrect length input.\n");
 		return 1;
 	}
-	//try to down the semaphore allowing us to write
-	down_interruptible(&writingSemaphore);
-	copy_from_user(presharedKey, buffer, PSK_LEN);
-	printk(KERN_INFO "wgChar: Received key from the user\n");
-	//allow people to read the data we just sabed
-	up(&readingSemaphore);
+	//copy in the data
+	inputBuffer = kmalloc(requiredLength, GFP_KERNEL);
+	copy_from_user(inputBuffer, buffer, requiredLength);
+
+	memcpyOffset = 0;
+	memcpy(presharedKey, inputBuffer + memcpyOffset, PSK_LEN);
+	memcpyOffset += PSK_LEN;
+	memcpy(&inputFileNum, inputBuffer + memcpyOffset, sizeof(__le32));
+	memcpyOffset += sizeof(__le32);
+	memcpy(&inputByteOffset, inputBuffer + memcpyOffset, sizeof(__le64));
+
+	printk(KERN_INFO "wgChar: Received key + state from the user\n");
+	//allow people to read the data we just saved
+	up(&kernelGetDataSemaphore);
 
 	return len;
 }
@@ -126,8 +187,11 @@ static ssize_t dev_write(struct file *filep, const char *buffer, size_t len, lof
 //when file is closed by userspace
 static int dev_release(struct inode *inodep, struct file *filep){
 	printk(KERN_INFO "wgChar: Device successfully closed\n");
+	numberOpens=0;
 	return 0;
 }
+
+
 
 
 int getPSKfromdev(u8 *out);
@@ -142,6 +206,20 @@ int getPSKfromdev(u8 *out) {
 	memset(presharedKey, '\x00', PSK_LEN);
 	//up to allow a new key to be entered
 	up(&writingSemaphore);
+	return 0;
+}
+
+int getKeyAndState(u8 *out, __le32 fileNum, __le64 byteOffset);
+
+int getKeyAndState(u8 *out, __le32 fileNum, __le64 byteOffset){
+	printk(KERN_INFO "wgChar: trying to get key and state from userspace.");
+	requestVec.requestType = KEYANDSTATE;
+	//allow the user to read the requestvector so they can respond accordingly
+	up(&userGetVectorSemaphore);
+
+	//make the kernel wait until the user has given data
+	down(&kernelGetDataSemaphore);
+
 	return 0;
 }
 
