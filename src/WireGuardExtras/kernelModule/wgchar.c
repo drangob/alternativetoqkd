@@ -18,8 +18,8 @@ MODULE_VERSION("0.2");
 
 static int majorNumber = 0;
 static unsigned char presharedKey[PSK_LEN] = {0};
-static __le32 inputFileNum = 0;
-static __le64 inputByteOffset = 0;
+static u32 inputFileNum = 0;
+static u64 inputByteOffset = 0;
 
 static struct semaphore readingSemaphore;
 static struct semaphore writingSemaphore;
@@ -45,8 +45,8 @@ enum requestType {
 //request vector
 struct requestVector {
 	enum requestType requestType;
-	__le32 fileNum;
-	__le64 byteOffset;
+	u32 fileNum;
+	u64 byteOffset;
 };
 
 static struct requestVector requestVec;
@@ -64,9 +64,9 @@ int packRequestVector(struct requestVector *requestVector, unsigned char *buf) {
 	int offset = 0;
 	memcpy(buf + offset, &requestVector->requestType, sizeof(enum requestType));
 	offset += sizeof(enum requestType);
-	memcpy(buf + offset, &requestVector->fileNum, sizeof(__le32));
-	offset += sizeof(__le32);
-	memcpy(buf + offset, &requestVector->byteOffset, sizeof(__le64));
+	memcpy(buf + offset, &requestVector->fileNum, sizeof(u32));
+	offset += sizeof(u32);
+	memcpy(buf + offset, &requestVector->byteOffset, sizeof(u64));
 
 	return 0;
 }
@@ -138,6 +138,10 @@ static int dev_open(struct inode *inodep, struct file *filep){
 
 //called when read, should provide a request vector so the userspace knows what to do
 static ssize_t dev_read(struct file *filep, char *buffer, size_t len, loff_t *offset){
+	if(len != sizeof(struct requestVector)) {
+		printk(KERN_ALERT "wgChar: user requested wrong size.");
+		return 1;
+	}
 	unsigned char *packedVector;
 	printk(KERN_INFO "wgChar: user has requested the request vector");
 	//when the requestvector is filled, we can do stuff
@@ -158,7 +162,7 @@ static ssize_t dev_read(struct file *filep, char *buffer, size_t len, loff_t *of
 //filep is the file
 //buf is what they send, len is the len of what they sent
 static ssize_t dev_write(struct file *filep, const char *buffer, size_t len, loff_t *offset){
-	int requiredLength = PSK_LEN + sizeof(__le32) + sizeof(__le64);
+	int requiredLength = PSK_LEN + sizeof(u32) + sizeof(u64);
 	int memcpyOffset;
 	unsigned char *inputBuffer;
 	//user should give key + state info, 
@@ -173,9 +177,9 @@ static ssize_t dev_write(struct file *filep, const char *buffer, size_t len, lof
 	memcpyOffset = 0;
 	memcpy(presharedKey, inputBuffer + memcpyOffset, PSK_LEN);
 	memcpyOffset += PSK_LEN;
-	memcpy(&inputFileNum, inputBuffer + memcpyOffset, sizeof(__le32));
-	memcpyOffset += sizeof(__le32);
-	memcpy(&inputByteOffset, inputBuffer + memcpyOffset, sizeof(__le64));
+	memcpy(&inputFileNum, inputBuffer + memcpyOffset, sizeof(u32));
+	memcpyOffset += sizeof(u32);
+	memcpy(&inputByteOffset, inputBuffer + memcpyOffset, sizeof(u64));
 
 	printk(KERN_INFO "wgChar: Received key + state from the user\n");
 	//allow people to read the data we just saved
@@ -194,24 +198,22 @@ static int dev_release(struct inode *inodep, struct file *filep){
 
 
 
-int getPSKfromdev(u8 *out);
-EXPORT_SYMBOL(getPSKfromdev);
+// int getPSKfromdev(u8 *out);
+// int getPSKfromdev(u8 *out) {
+// 	printk(KERN_INFO "wgChar: Trying to get the PSK.\n");
+// 	//try to down and read the data
+// 	down_interruptible(&readingSemaphore);
+// 	memcpy(out, presharedKey, PSK_LEN);
+// 	printk(KERN_INFO "wgChar: got the PSK from the device.\n");
+// 	memset(presharedKey, '\x00', PSK_LEN);
+// 	//up to allow a new key to be entered
+// 	up(&writingSemaphore);
+// 	return 0;
+// }
 
-int getPSKfromdev(u8 *out) {
-	printk(KERN_INFO "wgChar: Trying to get the PSK.\n");
-	//try to down and read the data
-	down_interruptible(&readingSemaphore);
-	memcpy(out, presharedKey, PSK_LEN);
-	printk(KERN_INFO "wgChar: got the PSK from the device.\n");
-	memset(presharedKey, '\x00', PSK_LEN);
-	//up to allow a new key to be entered
-	up(&writingSemaphore);
-	return 0;
-}
-
-int getKeyAndState(u8 *out, __le32 fileNum, __le64 byteOffset);
-
-int getKeyAndState(u8 *out, __le32 fileNum, __le64 byteOffset){
+int getKeyAndState(u8 *out, __le32 *fileNum, __le64 *byteOffset);
+EXPORT_SYMBOL(getKeyAndState);
+int getKeyAndState(u8 *out, __le32 *fileNum, __le64 *byteOffset) {
 	printk(KERN_INFO "wgChar: trying to get key and state from userspace.");
 	requestVec.requestType = KEYANDSTATE;
 	//allow the user to read the requestvector so they can respond accordingly
@@ -220,8 +222,34 @@ int getKeyAndState(u8 *out, __le32 fileNum, __le64 byteOffset){
 	//make the kernel wait until the user has given data
 	down(&kernelGetDataSemaphore);
 
+	//get the data
+	memcpy(out, presharedKey, PSK_LEN);
+	*fileNum = cpu_to_le32(inputFileNum);
+	*byteOffset = cpu_to_le64(inputByteOffset);
+
 	return 0;
 }
+
+int getKeyFromState(u8 *out, __le32 fileNum,  __le64 byteOffset);
+EXPORT_SYMBOL(getKeyFromState);
+int getKeyFromState(u8 *out, __le32 fileNum,  __le64 byteOffset) {
+	printk(KERN_INFO "wgChar: trying to get key from state, from userspace.");
+	requestVec.requestType = KEYFROMSTATE;
+	requestVec.fileNum = cpu_to_le32(fileNum);
+	requestVec.byteOffset = cpu_to_le64(byteOffset);
+
+	//allow the user to read the requestvector so they can respond accordingly
+	up(&userGetVectorSemaphore);
+
+	//make the kernel wait until the user has given data
+	down(&kernelGetDataSemaphore);
+
+	//get the data
+	memcpy(out, presharedKey, PSK_LEN);
+
+	return 0;
+}
+
 
 //must be included
 module_init(wgChar_init);
