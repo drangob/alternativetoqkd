@@ -1,0 +1,95 @@
+\title{A commercial alternative to QKD: filling USB sticks and hard disks with random bits}
+
+\documentclass{paper}
+
+\usepackage{geometry}
+\geometry{
+	a4paper,	
+	margin=20mm
+}
+
+\usepackage{hyperref}
+
+\begin{document}
+	\maketitle
+	\section{Introduction}
+		QKD (Quantum Key Cryptography) provides complete security but is limited by its expense and limited range. QKD also requires the initial distribution of small keys to start the system running, this is usually done by physical means. This begs the question, is it more commercially viable to distribute disks filled with large amounts of random bits for use in an cryptographic system?\\
+		This approach would allow symmetric key cryptography in the same way it is facilitated by QKD, but also allows for a more flexible system as the vast number of bits are immediately available, allowing a one time pad to be used.\\
+%TODO
+	\subsection{Threat Model}
+%TODO
+	
+	
+	\section{Randomness Sources}
+		Good quality randomness sources are required when filling a disk with random bits. This though has to be balanced with sources which can provide a good throughput rate so that filling a large disk with random bits is feasible.\\ 
+	
+		\subsection{Intel RDRAND}
+			\subsubsection{Throughput}
+				Intel RDRAND has an incredibly high maximum theoretical throughput at 800 MB/sec. (Note though that a single thread will see a throughput of 70 to 200MB/sec).\footnote{\url{https://software.intel.com/sites/default/files/managed/4d/91/DRNG_Software_Implementation_Guide_2.0.pdf}} \\
+				Benchmarks show that we could fill a 1TB disk in 4 Hours, 20 Minutes and 56 Seconds using RDRAND at throughput rates of:\\
+				100MB in 1.571749s = 63.62 MB/s\\
+				100MB in 1.563457s = 63.96 MB/s\\
+				100MB in 1.561578s = 64.04 MB/s\\
+				Yielding a  throughput of 63.87 MB/s\\
+				This throughput rate is more than suitable for our needs of filling a disk.
+			\subsubsection{Quality}
+				Intel's TRNG has been analysed by Cryptography Research, Inc.\footnote{Jun, B. and Kocher, P.``The Intel Random Number Generator'' Cryptography Research, Inc., April 1999} and was found to be suitable for cryptographic purposes.\\
+				Although found to be suitible for cryptographic purposes, there is much speculation about possible backdoors and trojans into Intels RDRAND system. It has been found that it is possible to insert a Trojan into the Intel CPU without detection.\footnote{Becker, Georg T., et al.``Stealthy dopant-level hardware trojans.'' International Workshop on Cryptographic Hardware and Embedded Systems. Springer Berlin Heidelberg, 2013}\\
+				Though Intel's David Johnston states ``I’ve examined my own RNG with electron microscopes and picoprobes. So I and a number of test engineers know full well that the design hasn’t been subverted.''\footnote{\url{https://plus.google.com/+TheodoreTso/posts/SDcoemc9V3J}}\\
+				Due to the risk of an undetected hardware trojan it's preferable that the Intel TRNG is not the sole source of entropy in the system.
+				
+		\subsection{ID Quantique Quantis}
+		ID Quantique produce hardware random number generators which use Quantum Physics to produce a stream of true random numbers.
+			\subsubsection{Throughput}
+				Each Quantis module is capable of providing a throughput of 4mb/s\footnote{\url{http://marketing.idquantique.com/acton/attachment/11868/f-004b/1/-/-/-/-/Quantum\%20RNG\%20White\%20Paper.pdf}}.\\
+				This equates to generating 1GB of random bits in 34 Minutes and 08 Seconds, which would mean a 1TB disk in 582 Hours, 32 Minutes and 32 Seconds. This is over 24 days and therefore is completely inappropriate for use as a direct source.\\
+			
+		\subsection{Linux /dev/random}
+		The linux kernel aims to provide a CSPRNG with its \texttt{/dev/random} device.
+			\subsubsection{Throughput}
+				The throughput of \texttt{/dev/random} is highly variable due to it gathering entropy from the usage of the machine. Completed benchmarks though showed the following results:\\	
+				1MB = 37.0049s, 27.0 kB/s\\
+				1MB = 37.7160s, 26.5 kB/s\\
+				1MB = 38.2632s, 26.1 kB/s\\
+				Yielding a mean throughput of 26.5kB/s\\
+				
+				This incredibly low throughput would result in 1GB being generated in 10 Hours, 59 Minutes and 28 Second. Therefore it is also useless to the system as a direct source of random bits.\\
+			\subsubsection{Quality}
+				There is little analysis into the Linux implementation of  \texttt{/dev/random} and its PRNG as a whole. It is though generally accepted that it is an appropriate way to source good quality random bits.\\
+			
+		\subsection{AES CTR as a CSPRNG}
+			AES can be used in CTR mode as a CSPRNG.\\
+			\subsubsection{Throughput}
+				Using AES-NI the throughput of AES-CTR can be incredibly fast.\\
+				Benchmarks gathered show:\\
+				100 MB = 0.422515s = 236.68 MB/s\\
+				100 MB = 0.398120s = 251.18 MB/s\\
+				100 MB = 0.412899s = 242.19 MB/s\\
+				Yielding a mean throughput of 243.35 MB/s\\
+				
+				This incredibly high throughput would allow us to fill a 1TB disk in 1 Hours, 11 Minutes and 48 Seconds. This makes it a perfect candidate for a source of random bits.\\
+			\subsubsection{Quality}
+				The quality of a AES-CTR CSPRNG is well trusted as a good source of random bits. Though this trust completely depends on a good key to seed the keystream.\\
+				To make the most of the good quality but lower throughput sources described prior (Quantis \& \texttt{/dev/random}) they can be used to seed an AES-CTR keystream.\\
+			
+		\subsection{Chosen Source}
+			Combining Intel RDRAND with an AES CSPRNG through XOR was chosen as the source of random bits in the system. This is due the speed of both sources and the potential security risk of RDRAND meaning it is preferable not to be used alone.
+			\subsubsection{Statistical Testing}
+			The suite of statistical tests used on the random bits generated is the DieHarder Suite.\\  
+			Both of these test results show a small amount of `WEAK' results from the analysis. Detailed results:\\ 
+			AES CSPRNG:\url{https://pastebin.com/raw/gcH4jXGp}\\ RDRAND:\url{https://pastebin.com/raw/diEgthVN}\\
+			This can also be explained by the DieHarder manual pages which state \textit{``If you run a long test series, you will see occasional weak returns for a perfect generators because p is uniformly distributed and will appear in any finite interval from time to time.''}\footnote{\url{http://manpages.ubuntu.com/manpages/precise/man1/dieharder.1.html}}
+		
+		\section{System Architecture}
+%TODO
+		\section{Security Analysis}
+%TODO	
+		\section{Sample applications}
+%TODO
+			\subsection{WireGuard Integration}
+%TODO
+			\subsection{One time pad file encryption}
+%TODO
+		
+						
+\end{document}
