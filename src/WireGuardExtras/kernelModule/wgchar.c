@@ -217,14 +217,10 @@ int getKeyAndState(u8 *out, __le32 *fileNum, __le64 *byteOffset) {
 	printk(KERN_INFO "wgChar: trying to get key and state from userspace.");
 	requestVec.requestType = KEYANDSTATE;
 	//allow the user to read the requestvector so they can respond accordingly
-	printk(KERN_ALERT "WGHAR: SEMAPHORE USERGETVECTOR = %d", userGetVectorSemaphore.count);
 	up(&userGetVectorSemaphore);
-	printk(KERN_ALERT "WGHAR: SEMAPHORE USERGETVECTOR = %d", userGetVectorSemaphore.count);
 
 	//make the kernel wait until the user has given data
-	printk(KERN_ALERT "WGHAR: SEMAPHORE KERNELGETDATA = %d", kernelGetDataSemaphore.count);
 	down(&kernelGetDataSemaphore);
-	printk(KERN_ALERT "WGHAR: SEMAPHORE KERNELGETDATA = %d", kernelGetDataSemaphore.count);
 
 	//get the data
 	memcpy(out, presharedKey, PSK_LEN);

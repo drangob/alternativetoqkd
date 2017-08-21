@@ -10,6 +10,13 @@
 #include "pointerFile.h"
 #include "bitConsumption.h"
 
+//request vector
+struct requestVector {
+	enum requestType requestType;
+	uint32_t fileNum;
+	uint64_t byteOffset;
+};
+
 int main(int argc, char const *argv[]) {
 	puts("What is the path for your randoms?");
 	char path[150];
@@ -58,11 +65,35 @@ int main(int argc, char const *argv[]) {
 	//infite loop of sending the keys to wireguard
 	//semaphores save us from this being a horrible idea
 	while(1){
-		//get the key
-		key = getBytes(path, ptr, bytesAmt);
-		//send it to wireguard
-		write(wgchar, key, bytesAmt);
-		printf("Sent key to wireguard!\n");
+		//need to get all of vector at once
+		struct requestVector requestVec;
+		packedVector = malloc(sizeof(struct requestVector));
+		ret = read(fd, packedVector, sizeof(struct requestVector));
+
+		//if(ret == 0) break;
+
+		int copyOffset = 0;
+		memcpy(&requestVec.requestType, packedVector, sizeof(enum requestType));
+		copyOffset += sizeof(enum requestType);
+		memcpy(&requestVec.fileNum, packedVector + copyOffset, sizeof(uint32_t));
+		copyOffset += sizeof(uint32_t);
+		memcpy(&requestVec.byteOffset, packedVector + copyOffset, sizeof(uint64_t));
+
+		free(packedVector);
+
+
+		
+
+		if (requestVec.requestType == KEYANDSTATE) {
+			printf("Kernel wants key and state!\n");
+			key = getBytes(path, ptr, bytesAmt);
+			write(fd, reply, requiredLength);
+		} else if (requestVec.requestType == KEYFROMSTATE) {
+			printf("Kernel wants key from state!\n");
+			key = getBytesWithFastForward(path, ptr, bytesAmt, requestVec.fileNum, requestVec.byteOffset);
+			write(fd, reply, requiredLength);
+		}
+
 		free(key);
 	}
 	
