@@ -10,6 +10,10 @@
 #include "pointerFile.h"
 #include "bitConsumption.h"
 
+enum requestType {
+	KEYANDSTATE,
+	KEYFROMSTATE
+};
 //request vector
 struct requestVector {
 	enum requestType requestType;
