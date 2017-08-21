@@ -65,6 +65,9 @@ int main(int argc, char const *argv[]) {
 
 	int wgchar = open("/dev/wgchar", O_WRONLY);
 	unsigned char *key;
+	int ret;
+	unsigned char *packedVector;
+	int requiredLength = 44;
 
 	//infite loop of sending the keys to wireguard
 	//semaphores save us from this being a horrible idea
@@ -72,7 +75,7 @@ int main(int argc, char const *argv[]) {
 		//need to get all of vector at once
 		struct requestVector requestVec;
 		packedVector = malloc(sizeof(struct requestVector));
-		ret = read(fd, packedVector, sizeof(struct requestVector));
+		ret = read(wgchar, packedVector, sizeof(struct requestVector));
 
 		//if(ret == 0) break;
 
@@ -91,11 +94,11 @@ int main(int argc, char const *argv[]) {
 		if (requestVec.requestType == KEYANDSTATE) {
 			printf("Kernel wants key and state!\n");
 			key = getBytes(path, ptr, bytesAmt);
-			write(fd, reply, requiredLength);
+			write(wgchar, key, requiredLength);
 		} else if (requestVec.requestType == KEYFROMSTATE) {
 			printf("Kernel wants key from state!\n");
 			key = getBytesWithFastForward(path, ptr, bytesAmt, requestVec.fileNum, requestVec.byteOffset);
-			write(fd, reply, requiredLength);
+			write(wgchar, key, requiredLength);
 		}
 
 		free(key);
