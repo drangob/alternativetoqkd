@@ -2,6 +2,8 @@
  * Copyright (C) 2015-2017 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
  *
  * See doc/protocol.md for more info
+ *
+ * Edited by Daniel Horbury 21/08/17
  */
 
 #ifndef MESSAGES_H
@@ -59,9 +61,14 @@ enum message_type {
 	MESSAGE_HANDSHAKE_RESPONSE = 2,
 	MESSAGE_HANDSHAKE_COOKIE = 3,
 	MESSAGE_DATA = 4,
-	MESSAGE_TOTAL = 5,
-	MESSAGE_STATE = 6
+	MESSAGE_TOTAL = 5
 };
+
+//start Daniel Horbury edit
+enum state_len {
+	STATE_LEN = 12
+};
+//end edit
 
 struct message_header {
 	/* The actual layout of this that we want is:
@@ -85,6 +92,9 @@ struct message_handshake_initiation {
 	u8 unencrypted_ephemeral[NOISE_PUBLIC_KEY_LEN];
 	u8 encrypted_static[noise_encrypted_len(NOISE_PUBLIC_KEY_LEN)];
 	u8 encrypted_timestamp[noise_encrypted_len(NOISE_TIMESTAMP_LEN)];
+	//Daniel Horbury edit
+	u8 unencrypted_state[STATE_LEN];
+	//end edit
 	struct message_macs macs;
 };
 
@@ -109,13 +119,6 @@ struct message_data {
 	__le32 key_idx;
 	__le64 counter;
 	u8 encrypted_data[];
-};
-
-struct state_data {
-	struct message_header header;
-	__le32 receiver_index;
-	__le32 fileNum;
-	__le64 byteOffset;
 };
 
 #define message_data_len(plain_len) (noise_encrypted_len(plain_len) + sizeof(struct message_data))
@@ -152,8 +155,6 @@ static inline enum message_type message_determine_type(struct sk_buff *skb)
 		return MESSAGE_HANDSHAKE_RESPONSE;
 	if (header->type == cpu_to_le32(MESSAGE_HANDSHAKE_COOKIE) && skb->len == sizeof(struct message_handshake_cookie))
 		return MESSAGE_HANDSHAKE_COOKIE;
-	if (header->type == cpu_to_le32(MESSAGE_STATE) && skb->len == sizeof(struct state_data))
-		return MESSAGE_STATE;
 	return MESSAGE_INVALID;
 }
 

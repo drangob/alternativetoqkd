@@ -138,11 +138,11 @@ static int dev_open(struct inode *inodep, struct file *filep){
 
 //called when read, should provide a request vector so the userspace knows what to do
 static ssize_t dev_read(struct file *filep, char *buffer, size_t len, loff_t *offset){
+	unsigned char *packedVector;
 	if(len != sizeof(struct requestVector)) {
 		printk(KERN_ALERT "wgChar: user requested wrong size.");
 		return 1;
 	}
-	unsigned char *packedVector;
 	printk(KERN_INFO "wgChar: user has requested the request vector");
 	//when the requestvector is filled, we can do stuff
 	down(&userGetVectorSemaphore);
@@ -217,10 +217,14 @@ int getKeyAndState(u8 *out, __le32 *fileNum, __le64 *byteOffset) {
 	printk(KERN_INFO "wgChar: trying to get key and state from userspace.");
 	requestVec.requestType = KEYANDSTATE;
 	//allow the user to read the requestvector so they can respond accordingly
+	printk(KERN_ALERT "WGHAR: SEMAPHORE USERGETVECTOR = %d", userGetVectorSemaphore.count);
 	up(&userGetVectorSemaphore);
+	printk(KERN_ALERT "WGHAR: SEMAPHORE USERGETVECTOR = %d", userGetVectorSemaphore.count);
 
 	//make the kernel wait until the user has given data
+	printk(KERN_ALERT "WGHAR: SEMAPHORE KERNELGETDATA = %d", kernelGetDataSemaphore.count);
 	down(&kernelGetDataSemaphore);
+	printk(KERN_ALERT "WGHAR: SEMAPHORE KERNELGETDATA = %d", kernelGetDataSemaphore.count);
 
 	//get the data
 	memcpy(out, presharedKey, PSK_LEN);
@@ -230,13 +234,13 @@ int getKeyAndState(u8 *out, __le32 *fileNum, __le64 *byteOffset) {
 	return 0;
 }
 
-int getKeyFromState(u8 *out, __le32 fileNum,  __le64 byteOffset);
+int getKeyFromState(u8 *out, __le32 *fileNum,  __le64 *byteOffset);
 EXPORT_SYMBOL(getKeyFromState);
-int getKeyFromState(u8 *out, __le32 fileNum,  __le64 byteOffset) {
+int getKeyFromState(u8 *out, __le32 *fileNum,  __le64 *byteOffset) {
 	printk(KERN_INFO "wgChar: trying to get key from state, from userspace.");
 	requestVec.requestType = KEYFROMSTATE;
-	requestVec.fileNum = cpu_to_le32(fileNum);
-	requestVec.byteOffset = cpu_to_le64(byteOffset);
+	requestVec.fileNum = cpu_to_le32(*fileNum);
+	requestVec.byteOffset = cpu_to_le64(*byteOffset);
 
 	//allow the user to read the requestvector so they can respond accordingly
 	up(&userGetVectorSemaphore);
@@ -246,6 +250,8 @@ int getKeyFromState(u8 *out, __le32 fileNum,  __le64 byteOffset) {
 
 	//get the data
 	memcpy(out, presharedKey, PSK_LEN);
+	*fileNum = cpu_to_le32(inputFileNum);
+	*byteOffset = cpu_to_le64(inputByteOffset);
 
 	return 0;
 }

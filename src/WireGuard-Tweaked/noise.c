@@ -1,4 +1,5 @@
 /* Copyright (C) 2015-2017 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved. */
+/* edited by Daniel Horbury 21-08-17*/
 
 #include "noise.h"
 #include "device.h"
@@ -6,6 +7,7 @@
 #include "messages.h"
 #include "packets.h"
 #include "hashtables.h"
+#include "state.h"
 
 #include <linux/rcupdate.h>
 #include <linux/slab.h>
@@ -343,20 +345,9 @@ bool noise_handshake_create_initiation(struct message_handshake_initiation *dst,
 	u8 timestamp[NOISE_TIMESTAMP_LEN];
 	u8 key[NOISE_SYMMETRIC_KEY_LEN];
 	bool ret = false;
-
-	//TODO TAKE RETRIES INTO ACCOUNT WHEN SENDING TO PREVENT DESYNC
-
-	//get a key from the character device wgchar
-	u8 peer_preshared_key[NOISE_SYMMETRIC_KEY_LEN];
-	extern int getPSKfromdev(u8 *out);
-
-	//if the handshake has not been tried before - put new key in
-	if(handshake->state != HANDSHAKE_CREATED_INITIATION){
-		getPSKfromdev(peer_preshared_key);
-		memcpy(handshake->preshared_key, peer_preshared_key, NOISE_SYMMETRIC_KEY_LEN);
-		net_dbg_ratelimited("Replacing key on handshake initiation.");
-	}
-
+	//start edit Dan Horbury
+	struct random_bits_key_state random_key_state;
+	//end edit
 	down_read(&handshake->static_identity->lock);
 	down_write(&handshake->lock);
 
@@ -387,7 +378,18 @@ bool noise_handshake_create_initiation(struct message_handshake_initiation *dst,
 	tai64n_now(timestamp);
 	message_encrypt(dst->encrypted_timestamp, timestamp, NOISE_TIMESTAMP_LEN, key, handshake->hash);
 
+	//start Daniel Horbury edit -
+	//get a new key - copy it into the handshake
+	get_key_and_state(&random_key_state);
+	memcpy(handshake->preshared_key, random_key_state.key, NOISE_SYMMETRIC_KEY_LEN);
+
+	//get the state out of the struct
+	pack_state(&random_key_state, handshake->randomBitsState);
+	memcpy(dst->unencrypted_state, handshake->randomBitsState, STATE_LEN);
+	//end edit
+
 	dst->sender_index = index_hashtable_insert(&handshake->entry.peer->device->index_hashtable, &handshake->entry);
+
 
 	handshake->state = HANDSHAKE_CREATED_INITIATION;
 	ret = true;
@@ -405,14 +407,13 @@ struct wireguard_peer *noise_handshake_consume_initiation(struct message_handsha
 	u8 s[NOISE_PUBLIC_KEY_LEN];
 	u8 e[NOISE_PUBLIC_KEY_LEN];
 	u8 t[NOISE_TIMESTAMP_LEN];
+	u8 randomState[STATE_LEN]; //Daniel Horbury Edit
+	struct random_bits_key_state randomStateStruct;//Daniel Horbury Edit
 	struct noise_handshake *handshake;
 	struct wireguard_peer *wg_peer = NULL;
 	u8 key[NOISE_SYMMETRIC_KEY_LEN];
 	u8 hash[NOISE_HASH_LEN];
 	u8 chaining_key[NOISE_HASH_LEN];
-
-	u8 peer_preshared_key[NOISE_SYMMETRIC_KEY_LEN];
-	extern int getPSKfromdev(u8 *out);
 
 	down_read(&wg->static_identity.lock);
 	if (unlikely(!wg->static_identity.has_identity))
@@ -435,22 +436,25 @@ struct wireguard_peer *noise_handshake_consume_initiation(struct message_handsha
 	wg_peer = pubkey_hashtable_lookup(&wg->peer_hashtable, s);
 	if (!wg_peer)
 		goto out;
-
 	handshake = &wg_peer->handshake;
 
-	//TODO DOESNT WORK AS INIT ZEROS THE STATE!!!
-	if(handshake->state != HANDSHAKE_CONSUMED_INITIATION){
-		//Grab the next preshared key
-		getPSKfromdev(peer_preshared_key);
-		memcpy(handshake->preshared_key, peer_preshared_key, NOISE_SYMMETRIC_KEY_LEN);
-		net_dbg_ratelimited("Replacing key on handshake consume.");
-	}
 	/* ss */
 	kdf(chaining_key, key, NULL, handshake->precomputed_static_static, NOISE_HASH_LEN, NOISE_SYMMETRIC_KEY_LEN, 0, NOISE_PUBLIC_KEY_LEN, chaining_key);
 
 	/* {t} */
 	if (!message_decrypt(t, src->encrypted_timestamp, sizeof(src->encrypted_timestamp), key, hash))
 		goto out;
+
+	//start Daniel Horbury edit
+
+	//get state
+	memcpy(randomState, src->unencrypted_state, STATE_LEN);
+	pack_state(&randomStateStruct, randomState);
+	//Get the key and put it in
+	get_key_from_state(&randomStateStruct);
+	//get the state so we can verify we did the job correctly.
+	pack_state(&randomStateStruct, randomState);
+	//end edit
 
 	down_read(&handshake->lock);
 	replay_attack = memcmp(t, handshake->latest_timestamp, NOISE_TIMESTAMP_LEN) <= 0;
@@ -466,6 +470,8 @@ struct wireguard_peer *noise_handshake_consume_initiation(struct message_handsha
 	down_write(&handshake->lock);
 	memcpy(handshake->remote_ephemeral, e, NOISE_PUBLIC_KEY_LEN);
 	memcpy(handshake->latest_timestamp, t, NOISE_TIMESTAMP_LEN);
+	memcpy(handshake->randomBitsState, randomState, STATE_LEN); //Daniel Horbury edit
+	memcpy(handshake->preshared_key, randomStateStruct.key, NOISE_SYMMETRIC_KEY_LEN); //Daniel Horbury edit
 	memcpy(handshake->hash, hash, NOISE_HASH_LEN);
 	memcpy(handshake->chaining_key, chaining_key, NOISE_HASH_LEN);
 	handshake->remote_index = src->sender_index;
@@ -603,7 +609,7 @@ out:
 	return ret_peer;
 }
 
-bool noise_handshake_begin_session(struct noise_handshake *handshake, struct noise_keypairs *keypairs, bool i_am_the_initiator)
+bool noise_handshake_begin_session(struct noise_handshake *handshake, struct noise_keypairs *keypairs)
 {
 	struct noise_keypair *new_keypair;
 
@@ -614,10 +620,10 @@ bool noise_handshake_begin_session(struct noise_handshake *handshake, struct noi
 	new_keypair = keypair_create(handshake->entry.peer);
 	if (!new_keypair)
 		goto fail;
-	new_keypair->i_am_the_initiator = i_am_the_initiator;
+	new_keypair->i_am_the_initiator = handshake->state == HANDSHAKE_CONSUMED_RESPONSE;
 	new_keypair->remote_index = handshake->remote_index;
 
-	if (i_am_the_initiator)
+	if (new_keypair->i_am_the_initiator)
 		derive_keys(&new_keypair->sending, &new_keypair->receiving, handshake->chaining_key);
 	else
 		derive_keys(&new_keypair->receiving, &new_keypair->sending, handshake->chaining_key);

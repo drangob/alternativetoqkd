@@ -32,10 +32,13 @@ int main() {
 	while(1){
 		//need to get all of vector at once
 		struct requestVector requestVec;
+		requestVec.requestType = -1;
 		packedVector = malloc(sizeof(struct requestVector));
 		ret = read(fd, packedVector, sizeof(struct requestVector));
 
-		if(ret == 0) break;
+		fwrite(packedVector, sizeof(packedVector), 1, stdout);
+
+		//if(ret == 0) break;
 
 		int copyOffset = 0;
 		memcpy(&requestVec.requestType, packedVector, sizeof(enum requestType));
@@ -53,7 +56,7 @@ int main() {
 		if (requestVec.requestType == KEYANDSTATE) {
 			printf("Kernel wants key and state!\n");
 			write(fd, reply, requiredLength);
-		} else {
+		} else if (requestVec.requestType == KEYFROMSTATE) {
 			printf("Kernel wants key from state!\n");
 			write(fd, reply, requiredLength);
 		}
