@@ -63,19 +63,22 @@ int main(int argc, char const *argv[]) {
 		exit(-1);
 	}
 
-	int wgchar = open("/dev/wgchar", O_WRONLY);
-	unsigned char *key;
-	int ret;
-	unsigned char *packedVector;
-	int requiredLength = 44;
 
-	//infite loop of sending the keys to wireguard
-	//semaphores save us from this being a horrible idea
+
+	int ret, fd;
+	unsigned char *packedVector;
+	int requiredLength = 44;//PSK_LEN + sizeof(uint32_t) + sizeof(uint64_t);
+	unsigned char *key;
+	//open the device
+	fd = open("/dev/wgchar", O_RDWR);             
+
 	while(1){
 		//need to get all of vector at once
 		struct requestVector requestVec;
 		packedVector = malloc(sizeof(struct requestVector));
-		ret = read(wgchar, packedVector, sizeof(struct requestVector));
+		ret = read(fd, packedVector, sizeof(struct requestVector));
+
+		fwrite(packedVector, sizeof(packedVector), 1, stdout);
 
 		//if(ret == 0) break;
 
@@ -89,19 +92,56 @@ int main(int argc, char const *argv[]) {
 		free(packedVector);
 
 
-		
+		unsigned char reply[44];
 
 		if (requestVec.requestType == KEYANDSTATE) {
 			printf("Kernel wants key and state!\n");
+			requestVec.fileNum = ptr->currentFile;
+			requestVec.byteOffset = ptr->byteOffset;
 			key = getBytes(path, ptr, bytesAmt);
-			write(wgchar, key, requiredLength);
 		} else if (requestVec.requestType == KEYFROMSTATE) {
 			printf("Kernel wants key from state!\n");
 			key = getBytesWithFastForward(path, ptr, bytesAmt, requestVec.fileNum, requestVec.byteOffset);
-			write(wgchar, key, requiredLength);
 		}
 
-		free(key);
+
+		memcpy(reply, key, 32);
+		memcpy(reply+32, &requestVec.fileNum, sizeof(requestVec.fileNum));
+		memcpy(reply+sizeof(requestVec.fileNum), &requestVec.byteOffset, sizeof(requestVec.byteOffset));
+		write(fd, reply, requiredLength);
 	}
-	
+
+	printf("Reading must have failed.\n");
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+		
 }	
