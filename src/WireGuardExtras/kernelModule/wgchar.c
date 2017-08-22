@@ -138,21 +138,16 @@ static int dev_open(struct inode *inodep, struct file *filep){
 
 //called when read, should provide a request vector so the userspace knows what to do
 static ssize_t dev_read(struct file *filep, char *buffer, size_t len, loff_t *offset){
-	unsigned char *packedVector;
 	if(len != sizeof(struct requestVector)) {
 		printk(KERN_ALERT "wgChar: user requested wrong size.");
 		return 1;
 	}
 	printk(KERN_INFO "wgChar: user has requested the request vector");
 	//when the requestvector is filled, we can do stuff
-	down(&userGetVectorSemaphore);
-	//pack the vector to be read by the userspace
-	packedVector = kmalloc(sizeof(struct requestVector), GFP_KERNEL);
-	packRequestVector(&requestVec, packedVector);
-	//send it over
-	copy_to_user(buffer, packedVector, sizeof(struct requestVector));
+	down_interruptible(&userGetVectorSemaphore);
 
-	kfree(packedVector);
+	//send it over
+	copy_to_user(buffer, &requestVec, sizeof(requestVec));
 
 	printk(KERN_INFO "wgChar: User got the requestvector!\n");
 	return 0;
@@ -192,6 +187,8 @@ static ssize_t dev_write(struct file *filep, const char *buffer, size_t len, lof
 static int dev_release(struct inode *inodep, struct file *filep){
 	printk(KERN_INFO "wgChar: Device successfully closed\n");
 	numberOpens=0;
+	//up(&kernelGetDataSemaphore);
+	//up(&userGetVectorSemaphore);
 	return 0;
 }
 
@@ -220,7 +217,7 @@ int getKeyAndState(u8 *out, __le32 *fileNum, __le64 *byteOffset) {
 	up(&userGetVectorSemaphore);
 
 	//make the kernel wait until the user has given data
-	down(&kernelGetDataSemaphore);
+	down_interruptible(&kernelGetDataSemaphore);
 
 	//get the data
 	memcpy(out, presharedKey, PSK_LEN);
@@ -242,7 +239,7 @@ int getKeyFromState(u8 *out, __le32 *fileNum,  __le64 *byteOffset) {
 	up(&userGetVectorSemaphore);
 
 	//make the kernel wait until the user has given data
-	down(&kernelGetDataSemaphore);
+	down_interruptible(&kernelGetDataSemaphore);
 
 	//get the data
 	memcpy(out, presharedKey, PSK_LEN);

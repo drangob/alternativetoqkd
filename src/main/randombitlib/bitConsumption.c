@@ -128,7 +128,7 @@ char *getBytes(char *path, struct pointerFile *ptr, uint32_t numOfBytes) {
 	}
 	//inrement here so we can integrity protect it
 	incrementPtrFile(ptr, numOfBytes);
-	scryptLogout(ptr);
+	//scryptLogout(ptr);
 	return outputBytes;
 }
 

@@ -33,7 +33,7 @@ int main(int argc, char const *argv[]) {
 
 	char ptrPath[150];
 	printf("Is your state file stored off disk? y/n\n");
-	char ptrChoice = ' ';
+	char ptrChoice = 'n';
 	while(!(ptrChoice == 'y' | ptrChoice == 'n')) {
 		scanf(" %c", &ptrChoice);	
 	}
@@ -76,18 +76,22 @@ int main(int argc, char const *argv[]) {
 		//need to get all of vector at once
 		struct requestVector requestVec;
 		packedVector = malloc(sizeof(struct requestVector));
+
+		printf("About to read the vector\n");
 		ret = read(fd, packedVector, sizeof(struct requestVector));
-
-		fwrite(packedVector, sizeof(packedVector), 1, stdout);
-
-		//if(ret == 0) break;
-
+		printf("read the vector\n");
+		//if(ret < sizeof(struct requestVector)) break;
+		printf("returned %d\n", ret);
 		int copyOffset = 0;
 		memcpy(&requestVec.requestType, packedVector, sizeof(enum requestType));
 		copyOffset += sizeof(enum requestType);
 		memcpy(&requestVec.fileNum, packedVector + copyOffset, sizeof(uint32_t));
 		copyOffset += sizeof(uint32_t);
 		memcpy(&requestVec.byteOffset, packedVector + copyOffset, sizeof(uint64_t));
+
+		printf("request vector type = %d\n", requestVec.requestType);
+		printf("request vector file = %d\n", requestVec.fileNum);
+		printf("request vector offset = %lu\n", requestVec.byteOffset);
 
 		free(packedVector);
 
@@ -103,6 +107,9 @@ int main(int argc, char const *argv[]) {
 			printf("Kernel wants key from state!\n");
 			key = getBytesWithFastForward(path, ptr, bytesAmt, requestVec.fileNum, requestVec.byteOffset);
 		}
+
+		printf("got bits from file %u\n", ptr->currentFile);
+		printf("got bits from offset %lu\n", ptr->byteOffset);
 
 
 		memcpy(reply, key, 32);
