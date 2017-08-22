@@ -22,4 +22,5 @@ void get_key_from_state(struct random_bits_key_state *keyStateStruct);
 
 void pack_state(struct random_bits_key_state *keyStateStruct, u8 *buff);
 
+void unpack_state(struct random_bits_key_state *keyStateStruct, u8 *buff);
 #endif /* STATE_H_ */
