@@ -177,6 +177,7 @@ static ssize_t dev_write(struct file *filep, const char *buffer, size_t len, lof
 	memcpy(&inputByteOffset, inputBuffer + memcpyOffset, sizeof(u64));
 
 	printk(KERN_INFO "wgChar: Received key + state from the user\n");
+	printk(KERN_INFO "wgchar: FILE = %u STATE = %llu \n", inputFileNum, inputByteOffset);
 	//allow people to read the data we just saved
 	up(&kernelGetDataSemaphore);
 

@@ -114,7 +114,7 @@ int main(int argc, char const *argv[]) {
 
 		memcpy(reply, key, 32);
 		memcpy(reply+32, &requestVec.fileNum, sizeof(requestVec.fileNum));
-		memcpy(reply+sizeof(requestVec.fileNum), &requestVec.byteOffset, sizeof(requestVec.byteOffset));
+		memcpy(reply+32+sizeof(requestVec.fileNum), &requestVec.byteOffset, sizeof(requestVec.byteOffset));
 		write(fd, reply, requiredLength);
 	}
 

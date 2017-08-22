@@ -446,10 +446,10 @@ struct wireguard_peer *noise_handshake_consume_initiation(struct message_handsha
 		goto out;
 
 	//start Daniel Horbury edit
-
 	//get state
 	memcpy(randomState, src->unencrypted_state, STATE_LEN);
-	pack_state(&randomStateStruct, randomState);
+	//put the raw data into struct
+	unpack_state(&randomStateStruct, randomState);
 	//Get the key and put it in
 	get_key_from_state(&randomStateStruct);
 	//get the state so we can verify we did the job correctly.
