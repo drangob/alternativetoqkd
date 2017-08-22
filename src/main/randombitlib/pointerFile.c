@@ -215,8 +215,10 @@ int verifyPtrFile(struct pointerFile *ptr) {
 }
 
 int fastForwardPtr(struct pointerFile *ptr, uint32_t fileNum, uint32_t offset) {
+	//if we called this method to fastfoward to current, discard and continue
+	if(fileNum == ptr->currentFile && offset == ptr->byteOffset) return 0;
 	//if we want to fastfoward this is valid
-	if(fileNum > ptr->currentFile || (fileNum == ptr->currentFile && offset >= ptr->byteOffset)) {
+	if(fileNum >= ptr->currentFile || (fileNum == ptr->currentFile && offset >= ptr->byteOffset)) {
 
 		#ifdef DEBUG
 			printf("Fast fowarding from file:%d:%lu to file:%d:%d\n", ptr->currentFile, ptr->byteOffset, fileNum, offset);
