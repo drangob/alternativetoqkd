@@ -188,30 +188,17 @@ static ssize_t dev_write(struct file *filep, const char *buffer, size_t len, lof
 static int dev_release(struct inode *inodep, struct file *filep){
 	printk(KERN_INFO "wgChar: Device successfully closed\n");
 	numberOpens=0;
-	//up(&kernelGetDataSemaphore);
-	//up(&userGetVectorSemaphore);
+	//release waiting wireguard query
+	up(&kernelGetDataSemaphore);
 	return 0;
 }
 
 
-
-
-// int getPSKfromdev(u8 *out);
-// int getPSKfromdev(u8 *out) {
-// 	printk(KERN_INFO "wgChar: Trying to get the PSK.\n");
-// 	//try to down and read the data
-// 	down_interruptible(&readingSemaphore);
-// 	memcpy(out, presharedKey, PSK_LEN);
-// 	printk(KERN_INFO "wgChar: got the PSK from the device.\n");
-// 	memset(presharedKey, '\x00', PSK_LEN);
-// 	//up to allow a new key to be entered
-// 	up(&writingSemaphore);
-// 	return 0;
-// }
-
 int getKeyAndState(u8 *out, __le32 *fileNum, __le64 *byteOffset);
 EXPORT_SYMBOL(getKeyAndState);
 int getKeyAndState(u8 *out, __le32 *fileNum, __le64 *byteOffset) {
+	//if there is no open, we simply return. 
+	if(!numberOpens) return -1;
 	printk(KERN_INFO "wgChar: trying to get key and state from userspace.");
 	requestVec.requestType = KEYANDSTATE;
 	//allow the user to read the requestvector so they can respond accordingly
@@ -219,6 +206,7 @@ int getKeyAndState(u8 *out, __le32 *fileNum, __le64 *byteOffset) {
 
 	//make the kernel wait until the user has given data
 	down_interruptible(&kernelGetDataSemaphore);
+	if(!numberOpens) return -1;
 
 	//get the data
 	memcpy(out, presharedKey, PSK_LEN);
@@ -231,6 +219,7 @@ int getKeyAndState(u8 *out, __le32 *fileNum, __le64 *byteOffset) {
 int getKeyFromState(u8 *out, __le32 *fileNum,  __le64 *byteOffset);
 EXPORT_SYMBOL(getKeyFromState);
 int getKeyFromState(u8 *out, __le32 *fileNum,  __le64 *byteOffset) {
+	if(!numberOpens) return -1;
 	printk(KERN_INFO "wgChar: trying to get key from state, from userspace.");
 	requestVec.requestType = KEYFROMSTATE;
 	requestVec.fileNum = cpu_to_le32(*fileNum);
@@ -241,6 +230,7 @@ int getKeyFromState(u8 *out, __le32 *fileNum,  __le64 *byteOffset) {
 
 	//make the kernel wait until the user has given data
 	down_interruptible(&kernelGetDataSemaphore);
+	if(!numberOpens) return -1;
 
 	//get the data
 	memcpy(out, presharedKey, PSK_LEN);
