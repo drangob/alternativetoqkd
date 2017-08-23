@@ -129,6 +129,9 @@ int main(int argc, char *argv[]) {
 		printf("Encryted with file:%u and offset:%lu\n", ptr->currentFile, ptr->byteOffset);
 	}
 	
+	if(randoms == NULL) {
+		exit(-1);
+	}
 
 	scryptLogout(ptr);
 	free(ptr);

@@ -108,14 +108,22 @@ int main(int argc, char const *argv[]) {
 			key = getBytesWithFastForward(path, ptr, bytesAmt, requestVec.fileNum, requestVec.byteOffset);
 		}
 
-		printf("got bits from file %u\n", ptr->currentFile);
-		printf("got bits from offset %lu\n", ptr->byteOffset);
+		//due to wireguard UDP async reading nulls can be expected
+		if (key == NULL){
+			//we still need to write something to enable subsequent handshakes to be recieved
+			//the character device will handle this 
+			write(fd, "0", 1);
+		//if we got a key properly send it over.
+		} else {
+			printf("got bits from file %u\n", ptr->currentFile);
+			printf("got bits from offset %lu\n", ptr->byteOffset);
 
 
-		memcpy(reply, key, 32);
-		memcpy(reply+32, &requestVec.fileNum, sizeof(requestVec.fileNum));
-		memcpy(reply+32+sizeof(requestVec.fileNum), &requestVec.byteOffset, sizeof(requestVec.byteOffset));
-		write(fd, reply, requiredLength);
+			memcpy(reply, key, 32);
+			memcpy(reply+32, &requestVec.fileNum, sizeof(requestVec.fileNum));
+			memcpy(reply+32+sizeof(requestVec.fileNum), &requestVec.byteOffset, sizeof(requestVec.byteOffset));
+			write(fd, reply, requiredLength);
+		}
 	}
 
 	printf("Reading must have failed.\n");

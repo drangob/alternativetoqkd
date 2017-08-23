@@ -51,6 +51,9 @@ int main(int argc, char const *argv[]) {
 
 	void *resulting = getBytes(path, ptr, bytesAmt); //getBytesWithFastForward(path, ptr, bytesAmt, 32, 32);
 
+	if(resulting == NULL){
+		exit(-1);
+	}
 
 	char savepath[250];
 	sprintf(savepath, "%s/output.bin", path);

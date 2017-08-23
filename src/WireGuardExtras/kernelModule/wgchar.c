@@ -21,11 +21,10 @@ static unsigned char presharedKey[PSK_LEN] = {0};
 static u32 inputFileNum = 0;
 static u64 inputByteOffset = 0;
 
-static struct semaphore readingSemaphore;
-static struct semaphore writingSemaphore;
-
 static struct semaphore userGetVectorSemaphore;
 static struct semaphore kernelGetDataSemaphore;
+
+static int isWriteError = 0;
 
 static int    numberOpens = 0;
 static struct class*  wgcharClass  = NULL;
@@ -104,8 +103,6 @@ static int __init wgChar_init(void){
 	printk(KERN_INFO "wgChar: device class created correctly\n");
 
 	//init read/write semaphore
-	sema_init(&readingSemaphore, 0);
-	sema_init(&writingSemaphore, 1);
 
 	sema_init(&userGetVectorSemaphore, 0);
 	sema_init(&kernelGetDataSemaphore, 0);
@@ -160,11 +157,16 @@ static ssize_t dev_write(struct file *filep, const char *buffer, size_t len, lof
 	int requiredLength = PSK_LEN + sizeof(u32) + sizeof(u64);
 	int memcpyOffset;
 	unsigned char *inputBuffer;
-	//user should give key + state info, 
+	//user should give key + state info
 	if(len != requiredLength){
+		//if there is an error, we can't afford to keep semaphores locked down
+		//therefore we set a flag to enable us to release for semaphore for a second run
 		printk(KERN_ALERT "wgChar: Received an incorrect length input.\n");
+		isWriteError = 1;
+		up(&kernelGetDataSemaphore);
 		return 1;
 	}
+	isWriteError = 0;
 	//copy in the data
 	inputBuffer = kmalloc(requiredLength, GFP_KERNEL);
 	copy_from_user(inputBuffer, buffer, requiredLength);
@@ -206,7 +208,8 @@ int getKeyAndState(u8 *out, __le32 *fileNum, __le64 *byteOffset) {
 
 	//make the kernel wait until the user has given data
 	down_interruptible(&kernelGetDataSemaphore);
-	if(!numberOpens) return -1;
+	//if the device is closed or a write error occurred return
+	if(!numberOpens || isWriteError) return -1;
 
 	//get the data
 	memcpy(out, presharedKey, PSK_LEN);
@@ -219,6 +222,7 @@ int getKeyAndState(u8 *out, __le32 *fileNum, __le64 *byteOffset) {
 int getKeyFromState(u8 *out, __le32 *fileNum,  __le64 *byteOffset);
 EXPORT_SYMBOL(getKeyFromState);
 int getKeyFromState(u8 *out, __le32 *fileNum,  __le64 *byteOffset) {
+	//if nobody has us open, we return
 	if(!numberOpens) return -1;
 	printk(KERN_INFO "wgChar: trying to get key from state, from userspace.");
 	requestVec.requestType = KEYFROMSTATE;
@@ -230,7 +234,8 @@ int getKeyFromState(u8 *out, __le32 *fileNum,  __le64 *byteOffset) {
 
 	//make the kernel wait until the user has given data
 	down_interruptible(&kernelGetDataSemaphore);
-	if(!numberOpens) return -1;
+	//if the device is closed or a write error occurred return
+	if(!numberOpens || isWriteError) return -1;
 
 	//get the data
 	memcpy(out, presharedKey, PSK_LEN);

@@ -89,8 +89,8 @@ char *getBytes(char *path, struct pointerFile *ptr, uint32_t numOfBytes) {
 		char *keyFileContents = openFile(curFileName);
 		//check for shredded file contents
 		if (!memcmp(keyFileContents+ptr->byteOffset, "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0", 16)) {
-			printf("You are most likely reading from shredded data, as a result this process will abort.\n");
-			exit(-1);
+			printf("You are most likely reading from shredded data, as a result a null pointer is being returned.\n");
+			return NULL;
 		}
 
 		if(!verifyPtrFile(ptr)) exit(-1);
