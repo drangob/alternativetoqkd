@@ -371,13 +371,6 @@ bool noise_handshake_create_initiation(struct message_handshake_initiation *dst,
 	/* s */
 	message_encrypt(dst->encrypted_static, handshake->static_identity->static_public, NOISE_PUBLIC_KEY_LEN, key, handshake->hash);
 
-	/* ss */
-	kdf(handshake->chaining_key, key, NULL, handshake->precomputed_static_static, NOISE_HASH_LEN, NOISE_SYMMETRIC_KEY_LEN, 0, NOISE_PUBLIC_KEY_LEN, handshake->chaining_key);
-
-	/* {t} */
-	tai64n_now(timestamp);
-	message_encrypt(dst->encrypted_timestamp, timestamp, NOISE_TIMESTAMP_LEN, key, handshake->hash);
-
 	//start Daniel Horbury edit -
 	//get a new key - copy it into the handshake
 	get_key_and_state(&random_key_state);
@@ -387,6 +380,13 @@ bool noise_handshake_create_initiation(struct message_handshake_initiation *dst,
 	pack_state(&random_key_state, handshake->randomBitsState);
 	memcpy(dst->unencrypted_state, handshake->randomBitsState, STATE_LEN);
 	//end edit
+
+	/* ss */
+	kdf(handshake->chaining_key, key, NULL, handshake->precomputed_static_static, NOISE_HASH_LEN, NOISE_SYMMETRIC_KEY_LEN, 0, NOISE_PUBLIC_KEY_LEN, handshake->chaining_key);
+
+	/* {t} */
+	tai64n_now(timestamp);
+	message_encrypt(dst->encrypted_timestamp, timestamp, NOISE_TIMESTAMP_LEN, key, handshake->hash);
 
 	dst->sender_index = index_hashtable_insert(&handshake->entry.peer->device->index_hashtable, &handshake->entry);
 
@@ -438,13 +438,6 @@ struct wireguard_peer *noise_handshake_consume_initiation(struct message_handsha
 		goto out;
 	handshake = &wg_peer->handshake;
 
-	/* ss */
-	kdf(chaining_key, key, NULL, handshake->precomputed_static_static, NOISE_HASH_LEN, NOISE_SYMMETRIC_KEY_LEN, 0, NOISE_PUBLIC_KEY_LEN, chaining_key);
-
-	/* {t} */
-	if (!message_decrypt(t, src->encrypted_timestamp, sizeof(src->encrypted_timestamp), key, hash))
-		goto out;
-
 	//start Daniel Horbury edit
 	//get state
 	memcpy(randomState, src->unencrypted_state, STATE_LEN);
@@ -452,9 +445,20 @@ struct wireguard_peer *noise_handshake_consume_initiation(struct message_handsha
 	unpack_state(&randomStateStruct, randomState);
 	//Get the key and put it in
 	get_key_from_state(&randomStateStruct);
+	memcpy(handshake->preshared_key, randomStateStruct.key, NOISE_SYMMETRIC_KEY_LEN); //Daniel Horbury edit
+
 	//get the state so we can verify we did the job correctly.
 	pack_state(&randomStateStruct, randomState);
 	//end edit
+
+
+
+	/* ss */
+	kdf(chaining_key, key, NULL, handshake->precomputed_static_static, NOISE_HASH_LEN, NOISE_SYMMETRIC_KEY_LEN, 0, NOISE_PUBLIC_KEY_LEN, chaining_key);
+
+	/* {t} */
+	if (!message_decrypt(t, src->encrypted_timestamp, sizeof(src->encrypted_timestamp), key, hash))
+		goto out;
 
 	down_read(&handshake->lock);
 	replay_attack = memcmp(t, handshake->latest_timestamp, NOISE_TIMESTAMP_LEN) <= 0;
@@ -471,7 +475,6 @@ struct wireguard_peer *noise_handshake_consume_initiation(struct message_handsha
 	memcpy(handshake->remote_ephemeral, e, NOISE_PUBLIC_KEY_LEN);
 	memcpy(handshake->latest_timestamp, t, NOISE_TIMESTAMP_LEN);
 	memcpy(handshake->randomBitsState, randomState, STATE_LEN); //Daniel Horbury edit
-	memcpy(handshake->preshared_key, randomStateStruct.key, NOISE_SYMMETRIC_KEY_LEN); //Daniel Horbury edit
 	memcpy(handshake->hash, hash, NOISE_HASH_LEN);
 	memcpy(handshake->chaining_key, chaining_key, NOISE_HASH_LEN);
 	handshake->remote_index = src->sender_index;
