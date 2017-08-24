@@ -81,7 +81,32 @@
 			This can also be explained by the DieHarder manual pages which state \textit{``If you run a long test series, you will see occasional weak returns for a perfect generators because p is uniformly distributed and will appear in any finite interval from time to time.''}\footnote{\url{http://manpages.ubuntu.com/manpages/precise/man1/dieharder.1.html}}
 		
 		\section{System Architecture}
-%TODO
+			\subsection{File storage}
+				File system structure: \vspace{-0.75em}
+				\begin{itemize}
+				\setlength\itemsep{-0.3em}
+				\item Disks that hold random bits are formatted in unjournalled ext4 with a block size of 4K.
+				\item $n$ random bit files are stored on the disk at the root directory and named sequentially:\\
+				$0.\texttt{bin}, 1.\texttt{bin}, 2.\texttt{bin}, \cdots , n.\texttt{bin}$.
+				\item Random bit files are 100003840 bytes long.
+				\item A state file is stored along the random bit files comprising of:\\ $\left[ \texttt{scrypt-salt}\parallel\texttt{current-file-num}\parallel\texttt{current-file-offset}\parallel\texttt{k2-AES-GCM-ciphertext}\right]$ 
+				\item A keyfile comprised of $n$ `lines' of AES-GCM ciphertext.
+				\end{itemize}
+				The storage architecture was designed to achieve the following requirements: \vspace{-0.75em}
+				\begin{enumerate}
+				\setlength\itemsep{-0.3em}
+				\item 	Can access files in a timely manner.
+				\item 	Disk space is fully utilised.
+				\item 	Files are laid out in a way which is easy to structurally navigate when consuming bits.
+				\item 	Random bits can be securely deleted from the file system once used.
+				\end{enumerate}
+				These requirements are met due to the following design choices:\\
+				\textbf{Requirement 1} is met by ext4 having no performance impediment for placing all the random bit files in one flat folder and accessing them directly through file name gained from the state file.\\
+				\textbf{Requirement 2} is met by setting the file size of the random bit files to a multiple of the block file. If the random bit file was set at 100MB it would result in 3840 bytes being wasted on the disk.\\
+				\textbf{Requirement 3} is met by ext4 allowing a theoretically limitless amount of files to be stored in the same simple to navigate flat folder.\\
+				\textbf{Requirement 4} is met by disabling the journal in ext4, this is because the journal keeps data about file history which renders secure deletion useless. When disabled secure deletion again becomes possible.
+				
+		
 		\section{Security Analysis}
 %TODO	
 		\section{Sample applications}
