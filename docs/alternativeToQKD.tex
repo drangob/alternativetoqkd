@@ -2,6 +2,8 @@
 
 \documentclass{paper}
 
+\usepackage{tikz}
+\usetikzlibrary{positioning}
 \usepackage{geometry}
 \geometry{
 	a4paper,	
@@ -131,6 +133,60 @@
 					\item Random bits are then encrypted by $((\mathit{ks1} \oplus \mathit{ks2}) \oplus\mathit{ks3})$ and saved to disk.
 					\item `progress.lock' file is deleted to denote that the files have been generated successfully.
 				\end{enumerate}
+			
+				\tikzset{XOR/.style={draw,circle,append after command={
+							[shorten >=\pgflinewidth, shorten <=\pgflinewidth,]
+							(\tikzlastnode.north) edge (\tikzlastnode.south)
+							(\tikzlastnode.east) edge (\tikzlastnode.west)
+						}
+					}
+				}
+				\begin{tikzpicture}
+							\node[draw](devrandom) at ([yshift=1em]sources.south) {\texttt{/dev/random}};
+							\node[draw](rdrand) at ([xshift=-8em]devrandom.west) {Intel \texttt{RDRAND}};
+							\node[draw](quantis)  at ([xshift=9em]devrandom.east) {Quantis};
+						\node[XOR, scale=2](sourcesXOR) at ([yshift=-3em]devrandom.south) {};
+						%arrows from random and quantis to xor
+						\draw [->, thick] (devrandom) to (sourcesXOR);
+						\draw [->,thick] (quantis) to [out=270,in=0] (sourcesXOR);
+						%aes ctr mode 
+						\node[draw](ks2Generator) at ([yshift=-2em]sourcesXOR.south) {AES-CTR};
+						%arrow from random and quantis xor to aes ctr
+						\draw [->,thick] (sourcesXOR) to (ks2Generator);
+						%final xor
+						\node[XOR,scale=2](finalXOR) at ([yshift=-3em]ks2Generator.south) {};
+						%arrow from AES-CTR generator to final keystream xor
+						\draw [->,thick] (ks2Generator) to node [midway, label=right:$\mathit{ks2}$] {} (finalXOR);
+						%arrow from rdrand to final keystream xor
+						\draw [->,thick] (rdrand) to [out=270, in = 180] node [midway, label=right:$\mathit{ks1}$] {} (finalXOR);
+						\node[XOR, scale=2](cryptoXOR) at ([yshift=-3em]finalXOR.south) {};
+						%arrow from final keystream xor to crypto xor
+						\draw [->,thick] (finalXOR) to node [midway, label=right:$\mathit{ksPtxt}$] {} (cryptoXOR);
+						%save to file node
+						\node[draw](finalFile) at ([yshift=-3em]cryptoXOR.south) {Output File};
+						\draw [->,thick] (cryptoXOR) to node [midway, label=right:$\mathit{ksCtxt}$] {} (finalFile);
+						
+						%crypto stuff below quantis
+						%key for AES CTR
+						\node[XOR, scale=2](ks3srcXOR) at ([yshift=-4em]quantis.south) {};
+						\draw [->,thick] (quantis) to (ks3srcXOR);
+						\draw [->,thick] (devrandom) to [out=270] (ks3srcXOR);
+						
+						%ks3
+						\node[draw](ks3CTR) at ([yshift=-3em]ks3srcXOR.south) {AES-CTR};
+						\draw [->,thick] (ks3srcXOR) to (ks3CTR);
+						\draw [->,thick] (ks3CTR) to [out=270, in=0] node [midway, label=right:$\mathit{ks3}$] {} (cryptoXOR);
+						
+						%ks3 key encryption
+						\node[draw](aesGCM) at ([xshift=4em]ks3CTR.east) {AES-GCM};
+						\draw [->,thick] (ks3srcXOR) to [out=0, in=90] node [midway, label=right:$\mathit{ks3}$ key] {} (aesGCM);
+						\draw [->,thick] ([xshift=2.4em]aesGCM.east) to [out=0,in=0] node [midway, label=below:$\mathit{k2}$] {} (aesGCM);
+						
+						%keyfile
+						\node[draw](keyFile) at ([yshift=-9em]aesGCM.south) {KeyFile};
+						\draw [->,thick] (aesGCM) tonode [midway, label=right:key Ctxt] {} (keyFile);
+						
+				\end{tikzpicture}
 
 			\subsection{Random bit file consumption}
 				
