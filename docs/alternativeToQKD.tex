@@ -142,6 +142,8 @@
 					}
 				}
 				\begin{tikzpicture}
+					\node[draw, text depth = 10cm,minimum width=\linewidth,font=\Large] (main){\textbf{Bit generation}};
+						\node[draw, text depth = 2em, minimum width=30em](sources) at ([yshift=-4em]main.north){Sources};
 							\node[draw](devrandom) at ([yshift=1em]sources.south) {\texttt{/dev/random}};
 							\node[draw](rdrand) at ([xshift=-8em]devrandom.west) {Intel \texttt{RDRAND}};
 							\node[draw](quantis)  at ([xshift=9em]devrandom.east) {Quantis};
