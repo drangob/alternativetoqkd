@@ -1,7 +1,7 @@
 \title{A commercial alternative to QKD: filling USB sticks and hard disks with random bits}
 
 \documentclass{paper}
-\author{Dan Horbury, }
+\author{Daniel A D Horbury, }
 
 \usepackage{tikz}
 \usetikzlibrary{positioning}
@@ -15,23 +15,16 @@
 
 \begin{document}
 	\maketitle
-	\section{Introduction}
+	\section{Introduction} %TODO
 		QKD (Quantum Key Cryptography) provides complete security but is limited by its expense and limited range. QKD also requires the initial distribution of small keys to start the system running, this is usually done by physical means. This begs the question, is it more commercially viable to distribute disks filled with large amounts of random bits for use in an cryptographic system?\\
 		This approach would allow symmetric key cryptography in the same way it is facilitated by QKD, but also allows for a more flexible system as the vast number of bits are immediately available, allowing a one time pad to be used.\\
-%TODO
-	\subsection{Threat Model}
-		\subsubsection{Random Bit generation}
-			\textbf{Threat} = Randomness source is insecure; e.g. Intel RDRAND backdoor.\\
-			\textbf{Mitigation} = Use multiple sources of trusted randomness and combine them using XOR to protect against any single source weakness.
-		\subsubsection{Random Bit consumption library}
-			\textbf{Threat} = Attacker can get whole decrypted random bit file from memory.\\
-			\textbf{Mitigation} = Effected memory is scrubbed before the returning of random bits to the user.
-		\subsubsection{Random Bit files / State File / Key File}
-			\textbf{Threat} = Attacker has access to the disk for a time.\\
-			\textbf{Mitigation} = Random bit files are AES-CTR encrypted by keys in the key file. The key file is integrity protected and encrypted through AES-GCM with a key from the state file. The state file is integrity protected and encrypted through a key gained by scrypt. \\
-			This cryptographic hierarchy means that no meaningful changes or information can be gained from any of the files on disk.\\
-			\textbf{Threat} Replay old state file to reuse data.\\
-			\textbf{Mitigation} When random bits have been consumed, GNU `shred' is used to ensure that data cannot be reused by securely deleting the random bits to nulls.\\
+
+	\subsection{Threat Model} %TODO
+			Randomness source is insecure; e.g. Intel RDRAND backdoor.\\
+			Attacker can get whole decrypted random bit file from memory.\\
+			Attacker has access to the disk for a time and can read random bits from disk.\\
+			Attacker can edit the files on disk.\\
+			An old state file can be replayed to force reuse of data.\\
 	
 	
 	\section{Randomness Sources}
@@ -250,7 +243,7 @@
 						\item Requested buffer is returned to the user.
 					\end{enumerate}
 				\subsubsection{Rationale}
-					The two separate methods used to request random bits are present due to the need to enforce synchronisation between the two disks. Enforcing synchronisation is necessary in most symmetric cryptographic implementations to ensure that the same key is used.\\ 
+					The two separate methods used to request random bits are present due to the need to enforce synchronisation between the two disks. Enforcing synchronisation is necessary in most symmetric cryptographic implementations to ensure that the same key is used.
 					
 					The state incremented to the nearest 128 bit multiple to aid in detecting shredded random bits. This is because shredded bits are detected by 16 NULL bytes, incrementing to a value not a multiple of 128 bits would result in a very rare detection of shredded data.
 				\subsubsection{Possible Improvements}
@@ -258,10 +251,22 @@
 				
 		
 		\section{Security Analysis}
-%TODO	
+			%TODO	
+			\textbf{Mitigation} = Use multiple sources of trusted randomness and combine them using XOR to protect against any single source weakness.\\
+			\textbf{Mitigation} = Effected memory is scrubbed before the returning of random bits to the user.\\
+			\textbf{Mitigation} = Random bit files are AES-CTR encrypted by keys in the key file. The key file is integrity protected and encrypted through AES-GCM with a key from the state file. The state file is integrity protected and encrypted through a key gained by scrypt.	This cryptographic hierarchy means that no meaningful changes or information can be gained from any of the files on disk.\\
+			\textbf{Mitigation} When random bits have been consumed, GNU `shred' is used to ensure that data cannot be reused by securely deleting the random bits to nulls.
+			
 		\section{Sample applications}
 %TODO
 			\subsection{WireGuard Integration}
+				Integration with WireGuard has been achieved which extends the existing WireGuard protocol by adding a state synchronisation message into the handshake and using the random bit consumption library to provide keys for the rotation of the pre-shared key field. This gives each WireGuard handshake and its associated encrypted packets a reliance on keys gained from the library. This is not the perfect implementation as there is enough data on the disk to achieve a one time pad over every packet. This though could not be completed due to the fact that the random bit consumption library would have to be rewritten in kernel space code to provide quick access to the random bits to WireGuard, rather than the current working solution of sending a key through a character device every handshake.
+				
+				The extension to the WireGuard protocol simply involves adding a field `state' to the end of the handshake initiation message with a size of 12 bytes. This will then be integrity protected under WireGuards existing system. The state being send in the clear is not a problem as the state is common knowledge and does not yield any useful information to an attacker.
+				
+				In addition to tweaks to WireGuards protocol, a way for WireGuard to request keys from the library was required. A kernel character device `wgchar' was created for this, it involves two methods for WireGuard to use \texttt{getKeyFromState()} and \texttt{getKeyAndState()}. On handshake initiation WireGuard will call \texttt{getKeyAndState()} to attempt to request a key with state information, it does this by writing a request vector to the character device, which can then be parsed by an application named \texttt{RandomProvider} which is built on top of the library and return next availible bits for a key, and the state of that key. This state is then placed into the handshake initiation packet, and the key placed into the pre-shared key field. When the handshake initiation is received by the respondent, WireGuard will call \texttt{getKeyFromState()} from the character device with the state it just recieved. This will again pass a request vector to the userspace program \texttt{RandomProvider}, which will fast forward to the requested state and return the key. WireGuard will receive this key, place it into the pre-shared key field and the handshake will complete successfully.
+				
+				The request vector described above is simply (Request type, file number, byte offset) and the userspace program \texttt{RandomProvider} engages in an infinite loop trying to read the vector from the character device. This is stopped by a semaphore named \texttt{userGetVectorSemaphore} which is set to 0 at start. When WireGuard requests a key, it will write the request vector to the character device and then up this semaphore to allow the user to read it. WireGuard will then wait at another semaphore which is set to 0 named \texttt{kernelGetDataSemaphore}, this semaphore will be upped when the userspace program \texttt{RandomProvider} has written a key to the character device, allowing the key to pass through to WireGuard. 
 %TODO
 			\subsection{One time pad file encryption}
 %TODO
