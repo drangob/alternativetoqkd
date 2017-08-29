@@ -84,143 +84,151 @@
 		
 		\section{System Architecture}
 			\subsection{File storage}
-				File system structure: \vspace{-0.75em}
-				\begin{itemize}
-				\setlength\itemsep{-0.3em}
-				\item Disks that hold random bits are formatted in unjournalled ext4 with a block size of 4K.
-				\item $n$ random bit files are stored on the disk at the root directory and named sequentially:\\
-				$0.\texttt{bin}, 1.\texttt{bin}, 2.\texttt{bin}, \cdots , n.\texttt{bin}$.
-				\item Random bit files are 100003840 bytes long.
-				\item A state file is stored along the random bit files comprising of:\\ $\left[ \texttt{scrypt-salt}\parallel\texttt{current-file-num}\parallel\texttt{current-file-offset}\parallel\texttt{k2-AES-GCM-ciphertext}\right]$ 
-				\item A keyfile comprised of $n$ `lines' of AES-GCM ciphertext.
-				\end{itemize}
-				The storage architecture was designed to achieve the following requirements: \vspace{-0.75em}
-				\begin{enumerate}
-				\setlength\itemsep{-0.3em}
-				\item 	Can access files in a timely manner.
-				\item 	Disk space is fully utilised.
-				\item 	Files are laid out in a way which is easy to structurally navigate when consuming bits.
-				\item 	Random bits can be securely deleted from the file system once used.
-				\end{enumerate}
-				These requirements are met due to the following design choices:\\
-				\textbf{Requirement 1} is met by ext4 having no performance impediment for placing all the random bit files in one flat folder and accessing them directly through file name gained from the state file.\\
-				\textbf{Requirement 2} is met by setting the file size of the random bit files to a multiple of the block file. If the random bit file was set at 100MB it would result in 3840 bytes being wasted on the disk.\\
-				\textbf{Requirement 3} is met by ext4 allowing a theoretically limitless amount of files to be stored in the same simple to navigate flat folder.\\
-				\textbf{Requirement 4} is met by disabling the journal in ext4, this is because the journal keeps data about file history which renders secure deletion useless. When disabled secure deletion again becomes possible.
-			\subsection{Random bit file generation}
-				The file generation process includes the following keys and structures:\\
-				$\mathit{ks1}$ = \texttt{Intel RDRAND} keystream.\\
-				$\mathit{ks2}$ = Primary \texttt{AES-CTR} keystream (regularly rekeyed).\\
-				$\mathit{ks3}$ = Secondary \texttt{AES-CTR} keystream (single key).\\
-				$\mathit{k1}$ = 128 bit \texttt{AES-GCM} key gained from scrypt.\\
-				$\mathit{k2}$ = 128 bit \texttt{AES-GCM} key stored in state.\\
-				$\mathit{keyfile}$ = File filled with `lines' of \texttt{AES-GCM} ciphertext which contain the seed keys for $\mathit{ks3}$.\vspace{1em}\\
-				\textbf{Random bit file generation process:}
-				\vspace{-0.75em}
-				\begin{enumerate}
+				\subsubsection{Implementation}
+					File system structure: \vspace{-0.75em}
+					\begin{itemize}
 					\setlength\itemsep{-0.3em}
-					\item Preliminary:
+					\item Disks that hold random bits are formatted in unjournalled ext4 with a block size of 4K.
+					\item $n$ random bit files are stored on the disk at the root directory and named sequentially:\\
+					$0.\texttt{bin}, 1.\texttt{bin}, 2.\texttt{bin}, \cdots , n.\texttt{bin}$.
+					\item Random bit files are 100003840 bytes long.
+					\item A state file is stored along the random bit files comprising of:\\ $\left[ \texttt{scrypt-salt}\parallel\texttt{current-file-num}\parallel\texttt{current-file-offset}\parallel\texttt{k2-AES-GCM-ciphertext}\right]$ 
+					\item A keyfile comprised of $n$ `lines' of AES-GCM ciphertext.
+					\end{itemize}
+				\subsubsection{Rationale}
+					The storage architecture was designed to achieve the following requirements: \vspace{-0.75em}
+					\begin{enumerate}
+					\setlength\itemsep{-0.3em}
+					\item 	Can access files in a timely manner.
+					\item 	Disk space is fully utilised.
+					\item 	Files are laid out in a way which is easy to structurally navigate when consuming bits.
+					\item 	Random bits can be securely deleted from the file system once used.
+					\end{enumerate}
+					These requirements are met due to the following design choices:\\
+					\textbf{Requirement 1} is met by ext4 having no performance impediment for placing all the random bit files in one flat folder and accessing them directly through file name gained from the state file.\\
+					\textbf{Requirement 2} is met by setting the file size of the random bit files to a multiple of the block file. If the random bit file was set at 100MB it would result in 3840 bytes being wasted on the disk.\\
+					\textbf{Requirement 3} is met by ext4 allowing a theoretically limitless amount of files to be stored in the same simple to navigate flat folder.\\
+					\textbf{Requirement 4} is met by disabling the journal in ext4, this is because the journal keeps data about file history which renders secure deletion useless. When disabled secure deletion again becomes possible.
+			\subsection{Random bit file generation}
+				\subsubsection{Implementation}
+					The file generation process includes the following keys and structures:\\
+					$\mathit{ks1}$ = \texttt{Intel RDRAND} keystream.\\
+					$\mathit{ks2}$ = Primary \texttt{AES-CTR} keystream (regularly rekeyed).\\
+					$\mathit{ks3}$ = Secondary \texttt{AES-CTR} keystream (single key).\\
+					$\mathit{k1}$ = 128 bit \texttt{AES-GCM} key gained from scrypt.\\
+					$\mathit{k2}$ = 128 bit \texttt{AES-GCM} key stored in state.\\
+					$\mathit{keyfile}$ = File filled with `lines' of \texttt{AES-GCM} ciphertext which contain the seed keys for $\mathit{ks3}$.\vspace{1em}\\
+					\textbf{Random bit file generation process:}
 					\vspace{-0.75em}
 					\begin{enumerate}
 						\setlength\itemsep{-0.3em}
-						\item Primary location of the random bit files is entered.
-						\item Option to save state to a different location is chosen.
-						\item Simultaneous writing of multiple disks can be enabled, and the secondary location chosen.
-						\item The amount of random bit files to be written is entered.
+						\item Preliminary:
+						\vspace{-0.75em}
+						\begin{enumerate}
+							\setlength\itemsep{-0.3em}
+							\item Primary location of the random bit files is entered.
+							\item Option to save state to a different location is chosen.
+							\item Simultaneous writing of multiple disks can be enabled, and the secondary location chosen.
+							\item The amount of random bit files to be written is entered.
+						\end{enumerate}
+	
+						
+						\item Simple `progress.lock' file containing the last file to start being written to is generated to enable resuming of writing if the system is interrupted.
+						\item State file is created/read, (depending if is resume or not).
+						\item $\mathit{ks2}$ is seeded with \texttt{/dev/random} and Quantis (if available).
+						\item $\mathit{ks3}$ is seeded with \texttt{/dev/random} and Quantis (if available) for encryption of the random bits.
+						\item Seed for $\mathit{ks3}$ is encrypted by \texttt{AES-GCM} with (key=$\mathit{k2}$, nonce=file number) and saved into the $\mathit{keyfile}$.
+						\item Random bits are generated by $\mathit{ks1} \oplus \mathit{ks2}$.
+						\item $\mathit{ks2}$ is rekeyed at an interval which won't effect performance too badly.
+						\item Random bits are then encrypted by $((\mathit{ks1} \oplus \mathit{ks2}) \oplus\mathit{ks3})$ and saved to disk.
+						\item `progress.lock' file is deleted to denote that the files have been generated successfully.
 					\end{enumerate}
-
-					
-					\item Simple `progress.lock' file containing the last file to start being written to is generated to enable resuming of writing if the system is interrupted.
-					\item State file is created/read, (depending if is resume or not).
-					\item $\mathit{ks2}$ is seeded with \texttt{/dev/random} and Quantis (if available).
-					\item $\mathit{ks3}$ is seeded with \texttt{/dev/random} and Quantis (if available) for encryption of the random bits.
-					\item Seed for $\mathit{ks3}$ is encrypted by \texttt{AES-GCM} with (key=$\mathit{k2}$, nonce=file number) and saved into the $\mathit{keyfile}$.
-					\item Random bits are generated by $\mathit{ks1} \oplus \mathit{ks2}$.
-					\item $\mathit{ks2}$ is rekeyed at an interval which won't effect performance too badly.
-					\item Random bits are then encrypted by $((\mathit{ks1} \oplus \mathit{ks2}) \oplus\mathit{ks3})$ and saved to disk.
-					\item `progress.lock' file is deleted to denote that the files have been generated successfully.
-				\end{enumerate}
-			
-				\tikzset{XOR/.style={draw,circle,append after command={
-							[shorten >=\pgflinewidth, shorten <=\pgflinewidth,]
-							(\tikzlastnode.north) edge (\tikzlastnode.south)
-							(\tikzlastnode.east) edge (\tikzlastnode.west)
+				
+					\tikzset{XOR/.style={draw,circle,append after command={
+								[shorten >=\pgflinewidth, shorten <=\pgflinewidth,]
+								(\tikzlastnode.north) edge (\tikzlastnode.south)
+								(\tikzlastnode.east) edge (\tikzlastnode.west)
+							}
 						}
 					}
-				}
-				\begin{tikzpicture}
-					\node[draw, text depth = 10cm,minimum width=\linewidth,font=\Large] (main){\textbf{Bit generation}};
-						\node[draw, text depth = 2em, minimum width=30em](sources) at ([yshift=-4em]main.north){Sources};
-							\node[draw](devrandom) at ([yshift=1em]sources.south) {\texttt{/dev/random}};
-							\node[draw](rdrand) at ([xshift=-8em]devrandom.west) {Intel \texttt{RDRAND}};
-							\node[draw](quantis)  at ([xshift=9em]devrandom.east) {Quantis};
-						\node[XOR, scale=2](sourcesXOR) at ([yshift=-3em]devrandom.south) {};
-						%arrows from random and quantis to xor
-						\draw [->, thick] (devrandom) to (sourcesXOR);
-						\draw [->,thick] (quantis) to [out=270,in=0] (sourcesXOR);
-						%aes ctr mode 
-						\node[draw](ks2Generator) at ([yshift=-2em]sourcesXOR.south) {AES-CTR};
-						%arrow from random and quantis xor to aes ctr
-						\draw [->,thick] (sourcesXOR) to (ks2Generator);
-						%final xor
-						\node[XOR,scale=2](finalXOR) at ([yshift=-3em]ks2Generator.south) {};
-						%arrow from AES-CTR generator to final keystream xor
-						\draw [->,thick] (ks2Generator) to node [midway, label=right:$\mathit{ks2}$] {} (finalXOR);
-						%arrow from rdrand to final keystream xor
-						\draw [->,thick] (rdrand) to [out=270, in = 180] node [midway, label=right:$\mathit{ks1}$] {} (finalXOR);
-						\node[XOR, scale=2](cryptoXOR) at ([yshift=-3em]finalXOR.south) {};
-						%arrow from final keystream xor to crypto xor
-						\draw [->,thick] (finalXOR) to node [midway, label=right:$\mathit{ksPtxt}$] {} (cryptoXOR);
-						%save to file node
-						\node[draw](finalFile) at ([yshift=-3em]cryptoXOR.south) {Output File};
-						\draw [->,thick] (cryptoXOR) to node [midway, label=right:$\mathit{ksCtxt}$] {} (finalFile);
-						
-						%crypto stuff below quantis
-						%key for AES CTR
-						\node[XOR, scale=2](ks3srcXOR) at ([yshift=-4em]quantis.south) {};
-						\draw [->,thick] (quantis) to (ks3srcXOR);
-						\draw [->,thick] (devrandom) to [out=270] (ks3srcXOR);
-						
-						%ks3
-						\node[draw](ks3CTR) at ([yshift=-3em]ks3srcXOR.south) {AES-CTR};
-						\draw [->,thick] (ks3srcXOR) to (ks3CTR);
-						\draw [->,thick] (ks3CTR) to [out=270, in=0] node [midway, label=right:$\mathit{ks3}$] {} (cryptoXOR);
-						
-						%ks3 key encryption
-						\node[draw](aesGCM) at ([xshift=4em]ks3CTR.east) {AES-GCM};
-						\draw [->,thick] (ks3srcXOR) to [out=0, in=90] node [midway, label=right:$\mathit{ks3}$ key] {} (aesGCM);
-						\draw [->,thick] ([xshift=2.4em]aesGCM.east) to [out=0,in=0] node [midway, label=below:$\mathit{k2}$] {} (aesGCM);
-						
-						%keyfile
-						\node[draw](keyFile) at ([yshift=-9em]aesGCM.south) {$\mathit{keyfile}$};
-						\draw [->,thick] (aesGCM) tonode [midway, label=right:key Ctxt] {} (keyFile);
-						
-				\end{tikzpicture}
+					\begin{tikzpicture}
+						\node[draw, text depth = 10cm,minimum width=\linewidth,font=\Large] (main){\textbf{Bit generation}};
+							\node[draw, text depth = 2em, minimum width=30em](sources) at ([yshift=-4em]main.north){Sources};
+								\node[draw](devrandom) at ([yshift=1em]sources.south) {\texttt{/dev/random}};
+								\node[draw](rdrand) at ([xshift=-8em]devrandom.west) {Intel \texttt{RDRAND}};
+								\node[draw](quantis)  at ([xshift=9em]devrandom.east) {Quantis};
+							\node[XOR, scale=2](sourcesXOR) at ([yshift=-3em]devrandom.south) {};
+							%arrows from random and quantis to xor
+							\draw [->, thick] (devrandom) to (sourcesXOR);
+							\draw [->,thick] (quantis) to [out=270,in=0] (sourcesXOR);
+							%aes ctr mode 
+							\node[draw](ks2Generator) at ([yshift=-2em]sourcesXOR.south) {AES-CTR};
+							%arrow from random and quantis xor to aes ctr
+							\draw [->,thick] (sourcesXOR) to (ks2Generator);
+							%final xor
+							\node[XOR,scale=2](finalXOR) at ([yshift=-3em]ks2Generator.south) {};
+							%arrow from AES-CTR generator to final keystream xor
+							\draw [->,thick] (ks2Generator) to node [midway, label=right:$\mathit{ks2}$] {} (finalXOR);
+							%arrow from rdrand to final keystream xor
+							\draw [->,thick] (rdrand) to [out=270, in = 180] node [midway, label=right:$\mathit{ks1}$] {} (finalXOR);
+							\node[XOR, scale=2](cryptoXOR) at ([yshift=-3em]finalXOR.south) {};
+							%arrow from final keystream xor to crypto xor
+							\draw [->,thick] (finalXOR) to node [midway, label=right:$\mathit{ksPtxt}$] {} (cryptoXOR);
+							%save to file node
+							\node[draw](finalFile) at ([yshift=-3em]cryptoXOR.south) {Output File};
+							\draw [->,thick] (cryptoXOR) to node [midway, label=right:$\mathit{ksCtxt}$] {} (finalFile);
+							
+							%crypto stuff below quantis
+							%key for AES CTR
+							\node[XOR, scale=2](ks3srcXOR) at ([yshift=-4em]quantis.south) {};
+							\draw [->,thick] (quantis) to (ks3srcXOR);
+							\draw [->,thick] (devrandom) to [out=270] (ks3srcXOR);
+							
+							%ks3
+							\node[draw](ks3CTR) at ([yshift=-3em]ks3srcXOR.south) {AES-CTR};
+							\draw [->,thick] (ks3srcXOR) to (ks3CTR);
+							\draw [->,thick] (ks3CTR) to [out=270, in=0] node [midway, label=right:$\mathit{ks3}$] {} (cryptoXOR);
+							
+							%ks3 key encryption
+							\node[draw](aesGCM) at ([xshift=4em]ks3CTR.east) {AES-GCM};
+							\draw [->,thick] (ks3srcXOR) to [out=0, in=90] node [midway, label=right:$\mathit{ks3}$ key] {} (aesGCM);
+							\draw [->,thick] ([xshift=2.4em]aesGCM.east) to [out=0,in=0] node [midway, label=below:$\mathit{k2}$] {} (aesGCM);
+							
+							%keyfile
+							\node[draw](keyFile) at ([yshift=-9em]aesGCM.south) {$\mathit{keyfile}$};
+							\draw [->,thick] (aesGCM) tonode [midway, label=right:key Ctxt] {} (keyFile);
+					\end{tikzpicture}
+				\subsubsection{Rationale}
+					As the bit generation will take some time to complete, it leaves the system open to being interrupted by external processes and the user. This means the system needed some way to resume the bit generation in order to avoid wasting generation time. The simple \texttt{progress.lock} file is used for this, which does not effect the speed of bit generation but allows to resume at a particular file which was not yet completed.\\
+					
+					To protect the random bits from being read directly from the disk by an attacker, the random bits are encrypted under AES-CTR at write time. This means that a third keystream is implemented and simply XORed into the data before it is written. This approach was taken as a third keystream does not impede the performance of the random bit generation, especially when compared to encrypting the file after it has been written.\\
+										
 
 			\subsection{Random bit file consumption}
-				Consuming the random bits that have been written is done by accessing an library and using its \texttt{getBytes} and \texttt{getBytesWithFastForward} methods. These methods will handle the integrity and confidentiality of the random bits and return a buffer with the desired random bits.\\
-				
-				To call \texttt{getBytes} or \texttt{getBytesWithFastForward} the following process must be completed:
-				\begin{enumerate}
-					\setlength\itemsep{-0.3em}
-					\item The state file must be opened with the method \texttt{readPtrFile(path\_name, file\_name)}, this is usually the path of the random bits (state path can be changed on random bit generation) with the file name \texttt{nextAvailable.ptr}. This will provide a struct that can be passed to the bit consumption methods.
-					\item Call the \texttt{getBytes(randoms\_path, ptr\_struct, byte\_num)} or \texttt{getBytesWithFastForward(randoms\_path, ptr\_struct, byte\_num, file\_num, byte\_offset)} methods, this will prompt for a password and then return the requested random bits.
-					\item \texttt{scryptLogout(ptr\_struct)} must be called after the operation to ensure that the login information is cleansed from memory properly.
-				\end{enumerate}
-				
-				The process undertaken by the bit consumption methods is as follows:
-				\begin{enumerate}
-					\setlength\itemsep{-0.3em}
-					\item If \texttt{getBytesWithFastForward} is run, the state is simply, decrypted, incremented to the requested state, and encrypted again, this updated state can then by used by the standard \texttt{getBytes} method.
-					\item The random bit file pointed to by the state file is loaded into memory ready to be decrypted. If the random bit file cipher text just loaded into memory contains 16 NULL bytes at the offset in the state file, a warning will be thrown and no data will be returned, this is because a 16 byte NULL is indicative of already used random bits.
-					\item The state file is integrity checked.
-					\item Key $\mathit{k2}$ is decrypted from the ciphertext in the state and used to decrypt the key in $\mathit{keyfile}$ that relates to random bit file that is being accessed.
-					\item The entire random bit file is decrypted in memory.
-					\item The requested segment from the random bit file is extracted and the random bit file loaded into memory is securely wiped and freed.
-					\item The random bit file is securely shredded using GNU Shred up to the new next available random bits.
-					\item Requested buffer is returned to the user.
-				\end{enumerate}
-				
+				\subsubsection{Implementation}
+					Consuming the random bits that have been written is done by accessing an library and using its \texttt{getBytes} and \texttt{getBytesWithFastForward} methods. These methods will handle the integrity and confidentiality of the random bits and return a buffer with the desired random bits.\\
+					
+					To call \texttt{getBytes} or \texttt{getBytesWithFastForward} the following process must be completed:
+					\begin{enumerate}
+						\setlength\itemsep{-0.3em}
+						\item The state file must be opened with the method \texttt{readPtrFile(path\_name, file\_name)}, this is usually the path of the random bits (state path can be changed on random bit generation) with the file name \texttt{nextAvailable.ptr}. This will provide a struct that can be passed to the bit consumption methods.
+						\item Call the \texttt{getBytes(randoms\_path, ptr\_struct, byte\_num)} or \texttt{getBytesWithFastForward(randoms\_path, ptr\_struct, byte\_num, file\_num, byte\_offset)} methods, this will prompt for a password and then return the requested random bits.
+						\item \texttt{scryptLogout(ptr\_struct)} must be called after the operation to ensure that the login information is cleansed from memory properly.
+					\end{enumerate}
+					
+					The process undertaken by the bit consumption methods is as follows:
+					\begin{enumerate}
+						\setlength\itemsep{-0.3em}
+						\item If \texttt{getBytesWithFastForward} is run, the state is simply, decrypted, incremented to the requested state, and encrypted again, this updated state can then by used by the standard \texttt{getBytes} method.
+						\item The random bit file pointed to by the state file is loaded into memory ready to be decrypted. If the random bit file cipher text just loaded into memory contains 16 NULL bytes at the offset in the state file, a warning will be thrown and no data will be returned, this is because a 16 byte NULL is indicative of already used random bits.
+						\item The state file is integrity checked.
+						\item Key $\mathit{k2}$ is decrypted from the ciphertext in the state and used to decrypt the key in $\mathit{keyfile}$ that relates to random bit file that is being accessed.
+						\item The entire random bit file is decrypted in memory.
+						\item The requested segment from the random bit file is extracted and the random bit file loaded into memory is securely wiped and freed.
+						\item The random bit file is securely shredded using GNU Shred up to the new next available random bits.
+						\item Requested buffer is returned to the user.
+					\end{enumerate}
+					
 				
 		
 		\section{Security Analysis}
