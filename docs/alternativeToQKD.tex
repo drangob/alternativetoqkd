@@ -1,6 +1,7 @@
 \title{A commercial alternative to QKD: filling USB sticks and hard disks with random bits}
 
 \documentclass{paper}
+\author{Dan Horbury, }
 
 \usepackage{tikz}
 \usetikzlibrary{positioning}
@@ -19,7 +20,18 @@
 		This approach would allow symmetric key cryptography in the same way it is facilitated by QKD, but also allows for a more flexible system as the vast number of bits are immediately available, allowing a one time pad to be used.\\
 %TODO
 	\subsection{Threat Model}
-		
+		\subsubsection{Random Bit generation}
+			\textbf{Threat} = Randomness source is insecure; e.g. Intel RDRAND backdoor.\\
+			\textbf{Mitigation} = Use multiple sources of trusted randomness and combine them using XOR to protect against any single source weakness.
+		\subsubsection{Random Bit consumption library}
+			\textbf{Threat} = Attacker can get whole decrypted random bit file from memory.\\
+			\textbf{Mitigation} = Effected memory is scrubbed before the returning of random bits to the user.
+		\subsubsection{Random Bit files / State File / Key File}
+			\textbf{Threat} = Attacker has access to the disk for a time.\\
+			\textbf{Mitigation} = Random bit files are AES-CTR encrypted by keys in the key file. The key file is integrity protected and encrypted through AES-GCM with a key from the state file. The state file is integrity protected and encrypted through a key gained by scrypt. \\
+			This cryptographic hierarchy means that no meaningful changes or information can be gained from any of the files on disk.\\
+			\textbf{Threat} Replay old state file to reuse data.\\
+			\textbf{Mitigation} When random bits have been consumed, GNU `shred' is used to ensure that data cannot be reused by securely deleting the random bits to nulls.\\
 	
 	
 	\section{Randomness Sources}
