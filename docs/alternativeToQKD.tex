@@ -208,6 +208,7 @@
 			\subsection{Random bit file consumption}
 				\subsubsection{Implementation}
 					Consuming the random bits that have been written is done by accessing an library and using its \texttt{getBytes} and \texttt{getBytesWithFastForward} methods. These methods will handle the integrity and confidentiality of the random bits and return a buffer with the desired random bits.\\
+					When bits are consumed, it is preferable to request a multiple of 128 bits. This is because the new offset after reading will be rounded up to the nearest multiple of 128 bits.\\
 					
 					To call \texttt{getBytes} or \texttt{getBytesWithFastForward} the following process must be completed:
 					\begin{enumerate}
@@ -221,17 +222,26 @@
 					\begin{enumerate}
 						\setlength\itemsep{-0.3em}
 						\item If \texttt{getBytesWithFastForward} is run, the state is simply, decrypted, incremented to the requested state, and encrypted again, this updated state can then by used by the standard \texttt{getBytes} method.
-						\item The random bit file pointed to by the state file is loaded into memory ready to be decrypted. If the random bit file cipher text just loaded into memory contains 16 NULL bytes at the offset in the state file, a warning will be thrown and no data will be returned, this is because a 16 byte NULL is indicative of already used random bits.
+					\end{enumerate}
+				
+					\texttt{getBytes} then completes as follows:
+					\begin{enumerate}
+						\setlength\itemsep{-0.3em}
+						\item The random bit file pointed to by the state file is loaded into memory ready to be decrypted. If the random bit file cipher text just loaded into memory contains 16 NULL bytes at the offset in the state file, a warning will be thrown and no data will be returned, this is because 16 NULL bytes is indicative of already used random bits.
 						\item The state file is integrity checked.
 						\item Key $\mathit{k2}$ is decrypted from the ciphertext in the state and used to decrypt the key in $\mathit{keyfile}$ that relates to random bit file that is being accessed.
 						\item The entire random bit file is decrypted in memory.
 						\item The requested segment from the random bit file is extracted and the random bit file loaded into memory is securely wiped and freed.
-						\item The random bit file is securely shredded using GNU Shred up to the new next available random bits.
+						\item The state incremented to the nearest 128 bit multiple.
+						\item The random bit file is securely shredded using GNU Shred up to the new state.
 						\item Requested buffer is returned to the user.
 					\end{enumerate}
 				\subsubsection{Rationale}
-				\subsubsection{Possible Improvements}
+					The two separate methods used to request random bits are present due to the need to enforce synchronisation between the two disks. Enforcing synchronisation is necessary in most symmetric cryptographic implementations to ensure that the same key is used.\\ 
 					
+					The state incremented to the nearest 128 bit multiple to aid in detecting shredded random bits. This is because shredded bits are detected by 16 NULL bytes, incrementing to a value not a multiple of 128 bits would result in a very rare detection of shredded data.
+				\subsubsection{Possible Improvements}
+					At present, whole random bit files are loaded into memory and decrypted, this could be improved so that only the requested data is loaded into memory and decrypted.\\			
 				
 		
 		\section{Security Analysis}
