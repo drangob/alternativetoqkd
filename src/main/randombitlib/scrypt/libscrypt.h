@@ -71,7 +71,7 @@ int libscrypt_check(char *mcf, const char *password);
 */
 #define SCRYPT_MCF_LEN 128
 #define SCRYPT_MCF_ID "$s1"
-#define SCRYPT_N 65536 //16384
+#define SCRYPT_N 16384
 #define SCRYPT_r 8
 #define SCRYPT_p 16
 #endif /* !_CRYPTO_SCRYPT_H_ */

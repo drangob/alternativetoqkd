@@ -19,7 +19,7 @@
 		This approach would allow symmetric key cryptography in the same way it is facilitated by QKD, but also allows for a more flexible system as the vast number of bits are immediately available, allowing a one time pad to be used.\\
 %TODO
 	\subsection{Threat Model}
-%TODO
+		
 	
 	
 	\section{Randomness Sources}
@@ -83,6 +83,14 @@
 			This can also be explained by the DieHarder manual pages which state \textit{``If you run a long test series, you will see occasional weak returns for a perfect generators because p is uniformly distributed and will appear in any finite interval from time to time.''}\footnote{\url{http://manpages.ubuntu.com/manpages/precise/man1/dieharder.1.html}}
 		
 		\section{System Architecture}
+			$\mathit{ks1}$ = \texttt{Intel RDRAND} keystream.\\
+			$\mathit{ks2}$ = Primary \texttt{AES-CTR} keystream (regularly rekeyed).\\
+			$\mathit{ks3}$ = Secondary \texttt{AES-CTR} keystream (single key).\\
+			$\mathit{k1}$ = 128 bit \texttt{AES-GCM} key gained from scrypt.\\
+			$\mathit{k2}$ = 128 bit \texttt{AES-GCM} key stored in state.\\
+			$\mathit{keyfile}$ = File filled with `lines' of \texttt{AES-GCM} ciphertext which contain the seed keys for $\mathit{ks3}$.\\
+			$\mathit{StateFile}$ = $\left[ \texttt{scrypt-salt}\parallel\texttt{current-file-num}\parallel\texttt{current-file-offset}\parallel\texttt{k2-AES-GCM-ciphertext}\right]$\\
+			\textbf{scrypt} invocations are made with $(N=16384,r=8,p=16)$
 			\subsection{File storage}
 				\subsubsection{Implementation}
 					File system structure: \vspace{-0.75em}
@@ -111,13 +119,6 @@
 					\textbf{Requirement 4} is met by disabling the journal in ext4, this is because the journal keeps data about file history which renders secure deletion useless. When disabled secure deletion again becomes possible.
 			\subsection{Random bit file generation}
 				\subsubsection{Implementation}
-					The file generation process includes the following keys and structures:\\
-					$\mathit{ks1}$ = \texttt{Intel RDRAND} keystream.\\
-					$\mathit{ks2}$ = Primary \texttt{AES-CTR} keystream (regularly rekeyed).\\
-					$\mathit{ks3}$ = Secondary \texttt{AES-CTR} keystream (single key).\\
-					$\mathit{k1}$ = 128 bit \texttt{AES-GCM} key gained from scrypt.\\
-					$\mathit{k2}$ = 128 bit \texttt{AES-GCM} key stored in state.\\
-					$\mathit{keyfile}$ = File filled with `lines' of \texttt{AES-GCM} ciphertext which contain the seed keys for $\mathit{ks3}$.\vspace{1em}\\
 					\textbf{Random bit file generation process:}
 					\vspace{-0.75em}
 					\begin{enumerate}
@@ -134,7 +135,7 @@
 	
 						
 						\item Simple `progress.lock' file containing the last file to start being written to is generated to enable resuming of writing if the system is interrupted.
-						\item State file is created/read, (depending if is resume or not).
+						\item $\mathit{StateFile}$ is created/read (depending if is resume or not). On $\mathit{StateFile}$ creation a password will be entered into \texttt{scrypt} with the $\mathit{StateFile}$ salt. The operation results in $\mathit{k1}$. Which is used to encrypt $\mathit{StateFile}$ through \texttt{AES-GCM(key=$\mathit{k1}$, nonce=$\texttt{current-file-num}\parallel\texttt{current-file-offset}$, txt=$\mathit{k2}$,\\ AD=$ \texttt{scrypt-salt}\parallel\texttt{current-file-num}\parallel\texttt{current-file-offset}$)}
 						\item $\mathit{ks2}$ is seeded with \texttt{/dev/random} and Quantis (if available).
 						\item $\mathit{ks3}$ is seeded with \texttt{/dev/random} and Quantis (if available) for encryption of the random bits.
 						\item Seed for $\mathit{ks3}$ is encrypted by \texttt{AES-GCM} with (key=$\mathit{k2}$, nonce=file number) and saved into the $\mathit{keyfile}$.
