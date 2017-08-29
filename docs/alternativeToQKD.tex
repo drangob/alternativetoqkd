@@ -202,7 +202,8 @@
 					As the bit generation will take some time to complete, it leaves the system open to being interrupted by external processes and the user. This means the system needed some way to resume the bit generation in order to avoid wasting generation time. The simple \texttt{progress.lock} file is used for this, which does not effect the speed of bit generation but allows to resume at a particular file which was not yet completed.\\
 					
 					To protect the random bits from being read directly from the disk by an attacker, the random bits are encrypted under AES-CTR at write time. This means that a third keystream is implemented and simply XORed into the data before it is written. This approach was taken as a third keystream does not impede the performance of the random bit generation, especially when compared to encrypting the file after it has been written.\\
-										
+				\subsubsection{Possible Improvements}
+					In $\mathit{ks2}$ the keystream is rekeyed at a constant interval set at compile time, this rekey interval is intended to keep the performance of the system from being slowed by the relatively expensive rekey operations. The chosen interval at which the performance will not be impeded is highly variable depending on the host machine. Therefore it would be very useful to implement a benchmarking system to automatically determine the best rekey interval for the host machine.
 
 			\subsection{Random bit file consumption}
 				\subsubsection{Implementation}
@@ -228,6 +229,8 @@
 						\item The random bit file is securely shredded using GNU Shred up to the new next available random bits.
 						\item Requested buffer is returned to the user.
 					\end{enumerate}
+				\subsubsection{Rationale}
+				\subsubsection{Possible Improvements}
 					
 				
 		
