@@ -16,8 +16,8 @@ static char args_doc[] = "INPUT-FILE OUTPUT-FILE RANDOM-PATH";
 //Extra options
 static struct argp_option options[] = {
 	{"state-path", 's', "PATH", 0, "source of random bits"},
-	{"fastfoward-file",  'q', "FileNUM", 0,  "file to fastfoward to"},
-	{"fastfoward-offset",  'p', "OffsetNUM", 0,  "offset to fastfoward to"},
+	{"fastfoward-file",  'f', "FileNUM", 0,  "file to fastfoward to"},
+	{"fastfoward-offset",  'o', "OffsetNUM", 0,  "offset to fastfoward to"},
 	{ 0 }
 };
 
@@ -49,11 +49,11 @@ parse_opt (int key, char *arg, struct argp_state *state) {
 			arguments->statePath = arg;
 			arguments->isState = 1;
 			break;
-		case 'q':
+		case 'f':
 			arguments->fastfoward_file = atoi(arg);
 			arguments->isFFFile = 1;
 			break;
-		case 'p':
+		case 'o':
 			arguments->fastfoward_offset = atoi(arg);
 			arguments->isFFOffset = 1;
 			break;
