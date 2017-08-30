@@ -125,7 +125,7 @@ int main(int argc, char *argv[]) {
 		randoms = getBytesWithFastForward(randomPath, ptr, fileSize, arguments.fastfoward_file, arguments.fastfoward_offset);
 		printf("Did crypto with file:%u and offset:%lu\n", arguments.fastfoward_file, arguments.fastfoward_offset);
 	} else {
-		printf("Did crypto file:%u and offset:%lu\n", ptr->currentFile, ptr->byteOffset);
+		printf("Doing crypto with file:%u and offset:%lu\n", ptr->currentFile, ptr->byteOffset);
 		randoms = getBytes(randomPath, ptr, fileSize);	
 	}
 	
