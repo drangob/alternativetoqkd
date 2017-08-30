@@ -211,9 +211,9 @@
 				\subsubsection{Possible Improvements}
 					In $\mathit{ks2}$ the keystream is rekeyed at a constant interval set at compile time, this rekey interval is intended to keep the performance of the system from being slowed by the relatively expensive rekey operations. The chosen interval at which the performance will not be impeded is highly variable depending on the host machine. Therefore it would be very useful to implement a benchmarking system to automatically determine the best rekey interval for the host machine.
 
-			\subsection{Random bit file consumption}
+			\subsection{Random bit file consumption library}
 				\subsubsection{Implementation}
-					Consuming the random bits that have been written is done by accessing an library and using its \texttt{getBytes} and \texttt{getBytesWithFastForward} methods. These methods will handle the integrity and confidentiality of the random bits and return a buffer with the desired random bits.\\
+					Consuming the random bits that have been written is done by accessing a library and using its \texttt{getBytes} and \texttt{getBytesWithFastForward} methods. These methods will handle the integrity and confidentiality of the random bits and return a buffer with the desired random bits.\\
 					When bits are consumed, it is preferable to request a multiple of 128 bits. This is because the new offset after reading will be rounded up to the nearest multiple of 128 bits.\\
 					
 					To call \texttt{getBytes} or \texttt{getBytesWithFastForward} the following process must be completed:
@@ -252,10 +252,13 @@
 		
 		\section{Security Analysis}
 			%TODO	
-			\textbf{Mitigation} = Use multiple sources of trusted randomness and combine them using XOR to protect against any single source weakness.\\
-			\textbf{Mitigation} = Effected memory is scrubbed before the returning of random bits to the user.\\
-			\textbf{Mitigation} = Random bit files are AES-CTR encrypted by keys in the key file. The key file is integrity protected and encrypted through AES-GCM with a key from the state file. The state file is integrity protected and encrypted through a key gained by scrypt.	This cryptographic hierarchy means that no meaningful changes or information can be gained from any of the files on disk.\\
-			\textbf{Mitigation} When random bits have been consumed, GNU `shred' is used to ensure that data cannot be reused by securely deleting the random bits to nulls.
+			The use of multiple sources of potentially trusted randomness (RDRAND and AES-CTR seeded by Quantis and /dev/random) are protected against any single source weakness by combining them. XOR is used to protect against any single source weakness by essentially encrypting each keystream with another keystream.
+			
+			Sensitive areas of memory is securely deleted by overwriting the effected area before freeing it for other applications to use. This is imperative when after the decryption of random bits as the whole file is present in memory at that point and could be accessed by other processes after the memory has been freed. 
+			
+			Each random bit files is encrypted by AES-CTR with a unique key stored in an adjacent key file. Each key in the key file is integrity protected and encrypted through AES-GCM with a key k2 from the state file and a nonce of the file number. The state file is integrity protected and encrypted through a key k1 gained by scrypt.	This cryptographic hierarchy means that no meaningful changes or information can be gained from any of the files on disk without the password for scrypt that opens up the whole cryptographic hierarchy. The attack vector to read any of the encrypted files is to gain access to the disk and the password (which cannot be easily dictionary attacked due to scrypt).
+			
+			When random bits have been consumed, GNU `shred' is used to write data to the disk in the Gutmann method \footnote{Gutmann, Peter. (July 22-–25, 1996) Secure Deletion of Data from Magnetic and Solid-State Memory}, which will remove the ability of an attacker to recover the removed data. After this pattern has been written a final pass is made to write null bytes to the cleaned part of the random bit file, this is used to ensure that a replay attack cannot take place as the system can detect already consumed bits.
 			
 		\section{Sample applications}
 %TODO
@@ -267,9 +270,17 @@
 				In addition to tweaks to WireGuards protocol, a way for WireGuard to request keys from the library was required. A kernel character device `wgchar' was created for this, it involves two methods for WireGuard to use \texttt{getKeyFromState()} and \texttt{getKeyAndState()}. On handshake initiation WireGuard will call \texttt{getKeyAndState()} to attempt to request a key with state information, it does this by writing a request vector to the character device, which can then be parsed by an application named \texttt{RandomProvider} which is built on top of the library and return next availible bits for a key, and the state of that key. This state is then placed into the handshake initiation packet, and the key placed into the pre-shared key field. When the handshake initiation is received by the respondent, WireGuard will call \texttt{getKeyFromState()} from the character device with the state it just recieved. This will again pass a request vector to the userspace program \texttt{RandomProvider}, which will fast forward to the requested state and return the key. WireGuard will receive this key, place it into the pre-shared key field and the handshake will complete successfully.
 				
 				The request vector described above is simply (Request type, file number, byte offset) and the userspace program \texttt{RandomProvider} engages in an infinite loop trying to read the vector from the character device. This is stopped by a semaphore named \texttt{userGetVectorSemaphore} which is set to 0 at start. When WireGuard requests a key, it will write the request vector to the character device and then up this semaphore to allow the user to read it. WireGuard will then wait at another semaphore which is set to 0 named \texttt{kernelGetDataSemaphore}, this semaphore will be upped when the userspace program \texttt{RandomProvider} has written a key to the character device, allowing the key to pass through to WireGuard. 
-%TODO
+				
 			\subsection{One time pad file encryption}
-%TODO
+				A one time pad file encryption system was simply implemented with the random bit consumption library by loading the requested file into memory and requesting the appropriate bytes from the random bits from the consumption library in order to complete a one time pad. This requires two disks to be used as the library removes the random bit key material used to encrypt the file upon completion of the encryption, likewise the file can only be decrypted once by the disk.
+				
+				\texttt{FileEncryptor [input file path] [output file path] [random bit path] -s <state file path> -f <decryption file number> -o <decryption byte offset>}
+				
+				The simple application takes mandatory command line arguments for input file, output file and random bit path. Using these default mandatory options will encrypt the input file with the next available random bits from the random bit path and save the result to the output path. The file number and offset which were used to encrypt the file will be printed to the screen, this information is needed to decrypt the file.
+				
+				Using the optional arguments \texttt{-f <decryption file number>} and \texttt{-o <decryption byte offset>} is intended for use in the decryption of files. Simply use the file number and offset given out by the encryption operation. 
+				
+				The last optional argument \texttt{-s <state file path>} is simply intended for use if the state was written to another location when the disk was written.
 		
 						
 \end{document}
