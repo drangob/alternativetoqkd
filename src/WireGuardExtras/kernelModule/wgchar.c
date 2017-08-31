@@ -216,7 +216,15 @@ int getKeyAndState(u8 *out, __le32 *fileNum, __le64 *byteOffset) {
 	*fileNum = cpu_to_le32(inputFileNum);
 	*byteOffset = cpu_to_le64(inputByteOffset);
 
+	if(is_empty(presharedKey, PSK_LEN)){
+		return 1;
+	}
+
 	return 0;
+}
+
+int is_empty(char *buf, int size){
+	return buf[0] == 0 && !memcmp(buf, buf + 1, size - 1);
 }
 
 int getKeyFromState(u8 *out, __le32 *fileNum,  __le64 *byteOffset);
@@ -241,6 +249,10 @@ int getKeyFromState(u8 *out, __le32 *fileNum,  __le64 *byteOffset) {
 	memcpy(out, presharedKey, PSK_LEN);
 	*fileNum = cpu_to_le32(inputFileNum);
 	*byteOffset = cpu_to_le64(inputByteOffset);
+
+	if(is_empty(presharedKey, PSK_LEN)){
+		return 1;
+	}
 
 	return 0;
 }
