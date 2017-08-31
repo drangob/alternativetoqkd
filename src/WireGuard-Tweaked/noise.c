@@ -340,14 +340,6 @@ static void tai64n_now(u8 output[NOISE_TIMESTAMP_LEN])
 	*(__be32 *)(output + sizeof(__be64)) = cpu_to_be32(1000 * now.tv_usec + 500);
 }
 
-
-//Daniel Horbury Edit
-//not an incredibly nice place to put this but i am short on time
-int is_empty(char *buf, int size){
-	return buf[0] == 0 && !memcmp(buf, buf + 1, size - 1);
-}
-//end edit
-
 bool noise_handshake_create_initiation(struct message_handshake_initiation *dst, struct noise_handshake *handshake)
 {
 	u8 timestamp[NOISE_TIMESTAMP_LEN];
@@ -381,21 +373,7 @@ bool noise_handshake_create_initiation(struct message_handshake_initiation *dst,
 
 	//start Daniel Horbury edit -
 	//get a new key - copy it into the handshake
-	//if we cant get a key we need to fail the initiation
-	//if the previous handshake failed on the initiators end
-	if(handshake->entry.peer->respondant_failed_struct.respondant_failed){
-		net_dbg_ratelimited("We fastfowarding due to a failure state.");
-		random_key_state.fileNum = handshake->entry.peer->respondant_failed_struct.fileNum;
-		random_key_state.byteOffset = handshake->entry.peer->respondant_failed_struct.byteOffset;
-		if(get_key_from_state(&random_key_state)) {
-			goto out;
-		}
-		handshake->entry.peer->respondant_failed_struct.respondant_failed = 0;
-	} else {
-		if(get_key_and_state(&random_key_state)) {
-			goto out;
-		}
-	}
+	get_key_and_state(&random_key_state);
 	memcpy(handshake->preshared_key, random_key_state.key, NOISE_SYMMETRIC_KEY_LEN);
 
 	//get the state out of the struct
@@ -466,13 +444,7 @@ struct wireguard_peer *noise_handshake_consume_initiation(struct message_handsha
 	//put the raw data into struct
 	unpack_state(&randomStateStruct, randomState);
 	//Get the key and put it in
-	//if this doesnt work, it means we are further ahead from the initiator, get ready to send our state over
-	if(get_key_from_state(&randomStateStruct)){
-		net_dbg_ratelimited("We have detected a failure state.");
-		wg_peer->respondant_failed_struct.respondant_failed = 1;
-		wg_peer->respondant_failed_struct.fileNum = randomStateStruct.fileNum;
-		wg_peer->respondant_failed_struct.byteOffset = randomStateStruct.byteOffset;
-	}
+	get_key_from_state(&randomStateStruct);
 	memcpy(handshake->preshared_key, randomStateStruct.key, NOISE_SYMMETRIC_KEY_LEN); //Daniel Horbury edit
 
 	//get the state so we can verify we did the job correctly.
@@ -551,17 +523,6 @@ bool noise_handshake_create_response(struct message_handshake_response *dst, str
 	/* {} */
 	message_encrypt(dst->encrypted_nothing, NULL, 0, key, handshake->hash);
 
-	//Daniel Horbury Edit start
-
-	//if the respondant is ahead, attach the state, if not. Write zeroes to it.
-	if(handshake->entry.peer->respondant_failed_struct.respondant_failed) {
-		net_dbg_ratelimited("We are sending a failure state.");
-		pack_failure_state(&handshake->entry.peer->respondant_failed_struct, dst->unencrypted_state);
-	} else {
-		memset(dst->unencrypted_state, '\0', STATE_LEN);
-	}
-	//Daniel Horbury edit end
-
 	dst->sender_index = index_hashtable_insert(&handshake->entry.peer->device->index_hashtable, &handshake->entry);
 
 	handshake->state = HANDSHAKE_CREATED_RESPONSE;
@@ -594,17 +555,6 @@ struct wireguard_peer *noise_handshake_consume_response(struct message_handshake
 	handshake = (struct noise_handshake *)index_hashtable_lookup(&wg->index_hashtable, INDEX_HASHTABLE_HANDSHAKE, src->receiver_index);
 	if (unlikely(!handshake))
 		goto out;
-
-	//Daniel Horbury Edit start
-	//check to see if we have an incoming failure state
-	if(!is_empty(src->unencrypted_state, STATE_LEN)){
-		//theres an incoming failure state
-		net_dbg_ratelimited("We just recieved a failure state.");
-		handshake->entry.peer->respondant_failed_struct.respondant_failed = 1;
-		unpack_failure_state(&handshake->entry.peer->respondant_failed_struct, src->unencrypted_state);
-	}
-
-
 
 	down_read(&handshake->lock);
 	state = handshake->state;
