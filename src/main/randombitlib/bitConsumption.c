@@ -133,6 +133,6 @@ char *getBytes(char *path, struct pointerFile *ptr, uint32_t numOfBytes) {
 }
 
 char *getBytesWithFastForward(char *path, struct pointerFile *ptr, uint32_t numOfBytes, uint32_t fileNumber, uint32_t offset) {
-	if(fastForwardPtr(ptr, fileNumber, offset)) return NULL;
+	if(fastForwardPtr(ptr, fileNumber, offset)) exit(-1);
 	return getBytes(path, ptr, numOfBytes);
 }
