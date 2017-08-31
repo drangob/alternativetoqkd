@@ -195,6 +195,9 @@ static int dev_release(struct inode *inodep, struct file *filep){
 	return 0;
 }
 
+int is_empty(char *buf, int size){
+	return buf[0] == 0 && !memcmp(buf, buf + 1, size - 1);
+}
 
 int getKeyAndState(u8 *out, __le32 *fileNum, __le64 *byteOffset);
 EXPORT_SYMBOL(getKeyAndState);
@@ -221,10 +224,6 @@ int getKeyAndState(u8 *out, __le32 *fileNum, __le64 *byteOffset) {
 	}
 
 	return 0;
-}
-
-int is_empty(char *buf, int size){
-	return buf[0] == 0 && !memcmp(buf, buf + 1, size - 1);
 }
 
 int getKeyFromState(u8 *out, __le32 *fileNum,  __le64 *byteOffset);
