@@ -373,7 +373,7 @@ bool noise_handshake_create_initiation(struct message_handshake_initiation *dst,
 
 	//start Daniel Horbury edit -
 	//get a new key - copy it into the handshake
-	get_key_and_state(&random_key_state);
+	if(get_key_and_state(&random_key_state)) goto out;
 	memcpy(handshake->preshared_key, random_key_state.key, NOISE_SYMMETRIC_KEY_LEN);
 
 	//get the state out of the struct

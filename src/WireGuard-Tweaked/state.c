@@ -10,14 +10,14 @@
 #include "state.h"
 
 //little adapter to get the data and pass it back
-void get_key_and_state(struct random_bits_key_state *keyStateStruct){
+int get_key_and_state(struct random_bits_key_state *keyStateStruct){
 	extern int getKeyAndState(u8 *out, __le32 *fileNum, __le64 *byteOffset);
-	getKeyAndState(keyStateStruct->key, &keyStateStruct->fileNum, &keyStateStruct->byteOffset);
+	return getKeyAndState(keyStateStruct->key, &keyStateStruct->fileNum, &keyStateStruct->byteOffset);
 }
 
-void get_key_from_state(struct random_bits_key_state *keyStateStruct){
+int get_key_from_state(struct random_bits_key_state *keyStateStruct){
 	extern int getKeyFromState(u8 *out, __le32 *fileNum,  __le64 *byteOffset);
-	getKeyFromState(keyStateStruct->key, &keyStateStruct->fileNum, &keyStateStruct->byteOffset);
+	return getKeyFromState(keyStateStruct->key, &keyStateStruct->fileNum, &keyStateStruct->byteOffset);
 }
 
 void pack_state(struct random_bits_key_state *keyStateStruct, u8 *buff) {

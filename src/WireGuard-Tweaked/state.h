@@ -16,9 +16,9 @@ struct random_bits_key_state {
 	__le64 byteOffset;
 };
 
-void get_key_and_state(struct random_bits_key_state *keyStateStruct);
+int get_key_and_state(struct random_bits_key_state *keyStateStruct);
 
-void get_key_from_state(struct random_bits_key_state *keyStateStruct);
+int get_key_from_state(struct random_bits_key_state *keyStateStruct);
 
 void pack_state(struct random_bits_key_state *keyStateStruct, u8 *buff);
 
