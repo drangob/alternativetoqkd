@@ -104,6 +104,7 @@ struct message_handshake_response {
 	__le32 receiver_index;
 	u8 unencrypted_ephemeral[NOISE_PUBLIC_KEY_LEN];
 	u8 encrypted_nothing[noise_encrypted_len(0)];
+	u8 unencrypted_state[STATE_LEN]; //Daniel Horbury edit
 	struct message_macs macs;
 };
 
