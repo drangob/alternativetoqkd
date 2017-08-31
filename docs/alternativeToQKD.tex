@@ -15,11 +15,11 @@
 
 \begin{document}
 	\maketitle
-	\section{Introduction} %TODO
+	\section{Introduction}
 		QKD (Quantum Key Cryptography) provides complete security but is limited by its expense and limited range. QKD also requires the initial distribution of small keys to start the system running, this is usually done by physical means. This begs the question, is it more commercially viable to distribute disks filled with large amounts of random bits for use in an cryptographic system?\\
 		This approach would allow symmetric key cryptography in the same way it is facilitated by QKD, but also allows for a more flexible system as the vast number of bits are immediately available, allowing a one time pad to be used.\\
 
-	\subsection{Threat Model} %TODO
+	\subsection{Threat Model}
 			Randomness source is insecure; e.g. Intel RDRAND backdoor.\\
 			Attacker can get whole decrypted random bit file from memory.\\
 			Attacker has access to the disk for a time and can read random bits from disk.\\
@@ -250,8 +250,7 @@
 					At present, whole random bit files are loaded into memory and decrypted, this could be improved so that only the requested data is loaded into memory and decrypted.\\			
 				
 		
-		\section{Security Analysis}
-			%TODO	
+		\section{Security Analysis}	
 			The use of multiple sources of potentially trusted randomness (RDRAND and AES-CTR seeded by Quantis and /dev/random) are protected against any single source weakness by combining them. XOR is used to protect against any single source weakness by essentially encrypting each keystream with another keystream.
 			
 			Sensitive areas of memory is securely deleted by overwriting the effected area before freeing it for other applications to use. This is imperative when after the decryption of random bits as the whole file is present in memory at that point and could be accessed by other processes after the memory has been freed. 
@@ -261,7 +260,6 @@
 			When random bits have been consumed, GNU `shred' is used to write data to the disk in the Gutmann method \footnote{Gutmann, Peter. (July 22-–25, 1996) Secure Deletion of Data from Magnetic and Solid-State Memory}, which will remove the ability of an attacker to recover the removed data. After this pattern has been written a final pass is made to write null bytes to the cleaned part of the random bit file, this is used to ensure that a replay attack cannot take place as the system can detect already consumed bits.
 			
 		\section{Sample applications}
-%TODO
 			\subsection{WireGuard Integration}
 				Integration with WireGuard has been achieved which extends the existing WireGuard protocol by adding a state synchronisation message into the handshake and using the random bit consumption library to provide keys for the rotation of the pre-shared key field. This gives each WireGuard handshake and its associated encrypted packets a reliance on keys gained from the library. This is not the perfect implementation as there is enough data on the disk to achieve a one time pad over every packet. This though could not be completed due to the fact that the random bit consumption library would have to be rewritten in kernel space code to provide quick access to the random bits to WireGuard, rather than the current working solution of sending a key through a character device every handshake.
 				
@@ -270,6 +268,8 @@
 				In addition to tweaks to WireGuards protocol, a way for WireGuard to request keys from the library was required. A kernel character device `wgchar' was created for this, it involves two methods for WireGuard to use \texttt{getKeyFromState()} and \texttt{getKeyAndState()}. On handshake initiation WireGuard will call \texttt{getKeyAndState()} to attempt to request a key with state information, it does this by writing a request vector to the character device, which can then be parsed by an application named \texttt{RandomProvider} which is built on top of the library and return next availible bits for a key, and the state of that key. This state is then placed into the handshake initiation packet, and the key placed into the pre-shared key field. When the handshake initiation is received by the respondent, WireGuard will call \texttt{getKeyFromState()} from the character device with the state it just recieved. This will again pass a request vector to the userspace program \texttt{RandomProvider}, which will fast forward to the requested state and return the key. WireGuard will receive this key, place it into the pre-shared key field and the handshake will complete successfully.
 				
 				The request vector described above is simply (Request type, file number, byte offset) and the userspace program \texttt{RandomProvider} engages in an infinite loop trying to read the vector from the character device. This is stopped by a semaphore named \texttt{userGetVectorSemaphore} which is set to 0 at start. When WireGuard requests a key, it will write the request vector to the character device and then up this semaphore to allow the user to read it. WireGuard will then wait at another semaphore which is set to 0 named \texttt{kernelGetDataSemaphore}, this semaphore will be upped when the userspace program \texttt{RandomProvider} has written a key to the character device, allowing the key to pass through to WireGuard. 
+				\subsection{Unimplemented features}
+					Unfortunately some features were not able to be implemented due to time constraints, notably if the respondent is very far ahead of the initiator the initiator will have to slowly keep sending handshake requests until it catches up with the respondent. A function was planned to further edit the WireGuard protocol in the handshake response to send the current state of the responder if the handshake fails, this would enable the initiator to catch up immediately rather than slowly.
 				
 			\subsection{One time pad file encryption}
 				A one time pad file encryption system was simply implemented with the random bit consumption library by loading the requested file into memory and requesting the appropriate bytes from the random bits from the consumption library in order to complete a one time pad. This requires two disks to be used as the library removes the random bit key material used to encrypt the file upon completion of the encryption, likewise the file can only be decrypted once by the disk.
